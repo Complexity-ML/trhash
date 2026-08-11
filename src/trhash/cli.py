@@ -15,6 +15,7 @@ Usage:
   trhash val model=MODEL data=DATASET.yaml [batch=16] [confidence=0.001]
   trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
   trhash export model=MODEL [format=onnx|torchscript] [output=runs/export]
+  trhash benchmark model=MODEL source=IMAGE [formats=onnx,torchscript] [runs=20]
   trhash publish bundle=BUNDLE repo=ORG/MODEL [private=true]
   trhash serve model=MODEL [host=127.0.0.1] [port=8000]
   trhash info model=MODEL

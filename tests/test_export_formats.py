@@ -39,6 +39,17 @@ def _backend():
     )
 
 
+class ExportableBackend:
+    def __init__(self):
+        values = _backend()
+        self.model = values.model
+        self.names = values.names
+        self.validation = values.validation
+
+    def export(self, **options):
+        return export_model(self, **options)
+
+
 def test_torchscript_export_parity_and_auto_runtime(tmp_path: Path):
     bundle = export_model(_backend(), format="torchscript", output=tmp_path / "torchscript")
 
@@ -53,6 +64,7 @@ def test_torchscript_export_parity_and_auto_runtime(tmp_path: Path):
     assert type(model.backend).__name__ == "TorchScriptBackend"
     assert len(results) == 2
     assert all(result.labels == [0] for result in results)
+    assert set(results[0].speed) == {"preprocess", "inference", "postprocess"}
 
 
 def test_onnx_export_parity_and_auto_runtime(tmp_path: Path):
@@ -81,3 +93,25 @@ def test_torchscript_raw_output_matches_checkpoint(tmp_path: Path):
     pixels = torch.from_numpy(np.random.default_rng(4).normal(size=(2, 3, 16, 16)).astype("float32"))
 
     torch.testing.assert_close(exported(pixels), backend.model.forward_predictions(pixels))
+
+
+def test_benchmark_compares_both_exported_formats(tmp_path: Path):
+    pytest.importorskip("onnx")
+    pytest.importorskip("onnxruntime")
+    model = Vision.__new__(Vision)
+    model.backend = ExportableBackend()
+
+    report = model.benchmark(
+        Image.new("RGB", (16, 16), "white"),
+        formats=("onnx", "torchscript"),
+        output=tmp_path / "benchmark",
+        warmup=1,
+        runs=2,
+        batch=2,
+        device="cpu",
+    )
+
+    assert {entry.format for entry in report.entries} == {"onnx", "torchscript"}
+    assert report.fastest in {"onnx", "torchscript"}
+    assert all(entry.latency_ms > 0 for entry in report.entries)
+    assert all(entry.bundle_size_mb > 0 for entry in report.entries)

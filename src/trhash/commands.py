@@ -121,6 +121,23 @@ def export(options: Dict[str, str]) -> None:
     print(json.dumps({"bundle": str(model.export(**exporting))}, indent=2))
 
 
+def benchmark(options: Dict[str, str]) -> None:
+    source = require(options, "source")
+    benchmarking = {
+        "formats": tuple(
+            value.strip() for value in options.pop("formats", "onnx,torchscript").split(",")
+        ),
+        "output": options.pop("output", "runs/benchmark"),
+        "warmup": int(options.pop("warmup", "3")),
+        "runs": int(options.pop("runs", "20")),
+        "batch": int(options.pop("batch", "1")),
+        "device": options.pop("benchmark_device", None),
+    }
+    model = vision(options)
+    reject_unknown(options)
+    print(json.dumps(model.benchmark(source, **benchmarking).to_dict(), indent=2))
+
+
 def serve(options: Dict[str, str]) -> None:
     serving = {
         "host": options.pop("host", "127.0.0.1"),
@@ -165,6 +182,7 @@ HANDLERS = {
     "train": train,
     "sft": train,
     "export": export,
+    "benchmark": benchmark,
     "publish": publish,
     "serve": serve,
     "info": info,

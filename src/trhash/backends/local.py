@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
-from PIL import Image
-
-from ..result import Result
+from ..metadata import metadata_from_checkpoint
 from ..runtime import imports, resolve_checkpoint, resolve_device
+from .portable import PortableDetectionBackend
 
-ImageSource = Union[str, Path, Image.Image]
 
-
-class LocalBackend:
+class LocalBackend(PortableDetectionBackend):
     def __init__(
         self,
         model: Union[str, Path],
@@ -52,56 +49,12 @@ class LocalBackend:
         self.validation = (
             json.loads(validation_path.read_text()) if validation_path.exists() else {}
         )
+        self.metadata = metadata_from_checkpoint(self)
 
-    def predict(
-        self,
-        source: ImageSource,
-        *,
-        confidence: Optional[float] = None,
-        iou: float = 0.45,
-    ) -> Result:
-        return self.predict_batch((source,), confidence=confidence, iou=iou)[0]
-
-    def predict_batch(
-        self,
-        sources: Sequence[ImageSource],
-        *,
-        confidence: Optional[float] = None,
-        iou: float = 0.45,
-    ) -> list[Result]:
-        images = [
-            (source.copy() if isinstance(source, Image.Image) else Image.open(source)).convert("RGB")
-            for source in sources
-        ]
-        prepared = [self.preprocess(image, self.model.config.image_size) for image in images]
-        selected_confidence = float(
-            confidence
-            if confidence is not None
-            else self.validation.get("best_confidence", 0.25)
-        )
+    def _predict_raw(self, pixels):
         with self.torch.inference_mode():
-            predictions = self.model.predict(
-                self.torch.stack([item[0] for item in prepared]).to(self.device),
-                confidence_threshold=selected_confidence,
-                iou_threshold=iou,
-                postprocess_on_cpu=self.device.type == "mps",
-            )
-        results = []
-        for source, image, prediction, (_, metadata) in zip(
-            sources, images, predictions, prepared
-        ):
-            boxes = self.restore_boxes(prediction["boxes"].cpu(), metadata)
-            results.append(
-                Result(
-                    image=image,
-                    boxes=[tuple(float(value) for value in box) for box in boxes],
-                    scores=[float(value) for value in prediction["scores"].cpu()],
-                    labels=[int(value) for value in prediction["labels"].cpu()],
-                    names=self.names,
-                    source=None if isinstance(source, Image.Image) else str(source),
-                )
-            )
-        return results
+            values = self.torch.from_numpy(pixels).to(self.device)
+            return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:
         from ..training import FineTuner

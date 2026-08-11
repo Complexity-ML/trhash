@@ -17,6 +17,7 @@ class Result:
     labels: List[int]
     names: Sequence[str]
     source: Optional[str] = None
+    speed: Dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_payload(cls, image: Image.Image, payload: Dict[str, Any]) -> "Result":
@@ -32,6 +33,10 @@ class Result:
             scores=[float(item["score"]) for item in detections],
             labels=[int(item["label"]) for item in detections],
             names=tuple(names),
+            speed={
+                str(name): float(value)
+                for name, value in payload.get("speed", {}).items()
+            },
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -52,11 +57,20 @@ class Result:
         }
         if self.source is not None:
             payload["source"] = self.source
+        if self.speed:
+            payload["speed"] = dict(self.speed)
         return payload
 
-    def plot(self, width: int = 3) -> Image.Image:
+    def plot(
+        self,
+        line_width: Optional[int] = None,
+        *,
+        labels: bool = True,
+        conf: bool = True,
+    ) -> Image.Image:
         rendered = self.image.copy()
         draw = ImageDraw.Draw(rendered)
+        width = line_width or max(round((rendered.width + rendered.height) * 0.0015), 2)
         for box, score, label in zip(self.boxes, self.scores, self.labels):
             color = (
                 50 + (37 * label + 53) % 205,
@@ -64,8 +78,15 @@ class Result:
                 50 + (17 * label + 113) % 205,
             )
             draw.rectangle(box, outline=color, width=width)
+            if not labels and not conf:
+                continue
             name = self.names[label] if label < len(self.names) else str(label)
-            text = f"{name} {score:.2f}"
+            parts = []
+            if labels:
+                parts.append(name)
+            if conf:
+                parts.append(f"{score:.2f}")
+            text = " ".join(parts)
             text_box = draw.textbbox((0, 0), text)
             text_height = text_box[3] - text_box[1]
             x, y = box[0], max(0.0, box[1] - text_height - 4)
@@ -73,8 +94,13 @@ class Result:
             draw.text((x + 2, y + 2), text, fill=(0, 0, 0))
         return rendered
 
-    def save(self, path: Union[str, Path]) -> Path:
+    def show(self, **plot_options) -> Image.Image:
+        rendered = self.plot(**plot_options)
+        rendered.show(title=self.source or "TR-Hash prediction")
+        return rendered
+
+    def save(self, path: Union[str, Path], **plot_options) -> Path:
         output = Path(path).expanduser()
         output.parent.mkdir(parents=True, exist_ok=True)
-        self.plot().save(output)
+        self.plot(**plot_options).save(output)
         return output.resolve()

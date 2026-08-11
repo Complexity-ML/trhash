@@ -99,6 +99,11 @@ class Vision:
             raise RuntimeError("export requires a local PyTorch checkpoint")
         return export(**options)
 
+    def benchmark(self, source: PredictionSource, **options):
+        from .benchmarking import benchmark_model
+
+        return benchmark_model(self, source, **options)
+
     def serve(self, **options) -> None:
         serve = getattr(self.backend, "serve", None)
         if serve is None:

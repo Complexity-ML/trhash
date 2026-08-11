@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -34,13 +35,16 @@ class PortableDetectionBackend:
         confidence: Optional[float] = None,
         iou: float = 0.45,
     ) -> list[Result]:
+        started = time.perf_counter()
         images = [
             (source.copy() if isinstance(source, Image.Image) else Image.open(source)).convert("RGB")
             for source in sources
         ]
         prepared = [preprocess(image, self.metadata) for image in images]
         pixels = np.stack([item[0] for item in prepared])
+        preprocessed = time.perf_counter()
         predictions = self._predict_raw(pixels)
+        inferred = time.perf_counter()
         threshold = (
             float(confidence)
             if confidence is not None
@@ -60,6 +64,15 @@ class PortableDetectionBackend:
                     source=None if isinstance(source, Image.Image) else str(source),
                 )
             )
+        finished = time.perf_counter()
+        count = max(len(images), 1)
+        speed = {
+            "preprocess": (preprocessed - started) * 1000.0 / count,
+            "inference": (inferred - preprocessed) * 1000.0 / count,
+            "postprocess": (finished - inferred) * 1000.0 / count,
+        }
+        for result in results:
+            result.speed.update(speed)
         return results
 
 

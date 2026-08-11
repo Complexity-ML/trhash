@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import time
 from pathlib import Path
 from typing import Optional, Union
 
@@ -45,6 +46,7 @@ class RemoteBackend:
         confidence: Optional[float] = None,
         iou: float = 0.45,
     ) -> Result:
+        started = time.perf_counter()
         image, content, filename = self._image_bytes(source)
         params = {"iou_threshold": iou}
         if confidence is not None:
@@ -56,6 +58,7 @@ class RemoteBackend:
         )
         response.raise_for_status()
         result = Result.from_payload(image, response.json())
+        result.speed["network"] = (time.perf_counter() - started) * 1000.0
         result.source = None if isinstance(source, Image.Image) else str(source)
         return result
 

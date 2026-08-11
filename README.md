@@ -26,6 +26,10 @@ results = model.predict("images/", batch=16)
 for result in model.predict("images/", batch=16, stream=True):
     print(result.to_dict())
 
+print(result.speed)  # preprocess/inference/postprocess milliseconds per image
+result.plot(labels=True, conf=True, line_width=2)
+result.show(labels=False)
+
 metrics = model.val(data="dataset.yaml", batch=16)
 print(metrics.map50, metrics.precision, metrics.recall)
 
@@ -114,6 +118,10 @@ trhash export \
   device=cpu \
   format=torchscript \
   output=artifacts/trhash-torchscript
+
+trhash benchmark \
+  model=artifacts/detector/best runtime=torch source=image.jpg \
+  formats=onnx,torchscript runs=50 batch=8 output=runs/benchmark
 
 trhash serve \
   model=artifacts/trhash-onnx \
