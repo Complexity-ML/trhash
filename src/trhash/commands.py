@@ -81,6 +81,7 @@ def val(options: Dict[str, str]) -> None:
         "iou": float(options.pop("iou", "0.45")),
         "match_iou": float(options.pop("match_iou", "0.50")),
         "batch": int(options.pop("batch", "16")),
+        "devices": int(options.pop("devices", "1")),
     }
     max_images = options.pop("max_images", None)
     validation["max_images"] = int(max_images) if max_images is not None else None
@@ -95,6 +96,9 @@ def train(options: Dict[str, str]) -> None:
         "output": options.pop("output", "runs/train"),
         "epochs": int(options.pop("epochs", "20")),
         "batch": int(options.pop("batch", "16")),
+        "eval_batch": int(options.pop("eval_batch", "0")),
+        "eval_every": int(options.pop("eval_every", "5")),
+        "eval_max_detections": int(options.pop("eval_max_detections", "100")),
         "workers": int(options.pop("workers", "0")),
         "lr": float(options.pop("lr", "0.01")),
         "expert_lr_multiplier": float(options.pop("expert_lr_multiplier", "1.5")),

@@ -23,6 +23,10 @@ class FineTuner:
         output: Union[str, Path] = "runs/train",
         epochs: int = 20,
         batch: int = 16,
+        devices: int = 1,
+        eval_batch: int = 0,
+        eval_every: int = 5,
+        eval_max_detections: int = 100,
         workers: int = 0,
         device: Optional[str] = None,
         lr: float = 1e-2,
@@ -34,6 +38,14 @@ class FineTuner:
     ) -> Path:
         if augmentation not in {"light", "strong"}:
             raise ValueError("augmentation must be light or strong")
+        if eval_batch < 0:
+            raise ValueError("eval_batch cannot be negative")
+        if eval_every <= 0:
+            raise ValueError("eval_every must be positive")
+        if eval_max_detections <= 0:
+            raise ValueError("eval_max_detections must be positive")
+        if devices <= 0:
+            raise ValueError("devices must be positive")
         dataset = load_dataset(data)
         observed_classes = observed_class_count(dataset.train_labels)
         if observed_classes != len(dataset.names):
@@ -77,11 +89,31 @@ class FineTuner:
                 )
             )
 
+        selected_device = device or str(self.backend.device)
+        if devices > 1 and not selected_device.startswith("cuda"):
+            raise ValueError("multi-device training requires CUDA")
+        launcher = (
+            [
+                sys.executable,
+                "-u",
+                "-m",
+                "torch.distributed.run",
+                "--standalone",
+                "--nproc-per-node",
+                str(devices),
+                "--module",
+                "complexity.generative.detection.training",
+            ]
+            if devices > 1
+            else [
+                sys.executable,
+                "-u",
+                "-m",
+                "complexity.generative.detection.training",
+            ]
+        )
         command = [
-            sys.executable,
-            "-u",
-            "-m",
-            "complexity.generative.detection.training",
+            *launcher,
             *initialization,
             "--yolo-images",
             str(dataset.train_images),
@@ -93,6 +125,12 @@ class FineTuner:
             str(epochs),
             "--batch-size",
             str(batch),
+            "--eval-batch-size",
+            str(eval_batch),
+            "--eval-every",
+            str(eval_every),
+            "--eval-max-detections",
+            str(eval_max_detections),
             "--workers",
             str(workers),
             "--lr",
@@ -104,7 +142,7 @@ class FineTuner:
             "--seed",
             str(seed),
             "--device",
-            device or str(self.backend.device),
+            selected_device,
             *architecture_arguments(self.backend.model.config),
         ]
         if dataset.validation_images is not None and dataset.validation_labels is not None:

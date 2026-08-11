@@ -56,6 +56,8 @@ checkpoint = model.train(
     data="dataset.yaml",
     epochs=20,
     batch=64,
+    eval_batch=128,
+    eval_every=5,
     device="cuda",
 )
 
@@ -106,7 +108,12 @@ trhash val model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
   data=dataset.yaml batch=16
 
 trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
-  data=dataset.yaml epochs=20 batch=64 augmentation=strong device=cuda
+  data=dataset.yaml epochs=20 batch=64 eval_batch=128 eval_every=5 \
+  augmentation=strong device=cuda
+
+# Four CUDA processes, one per GPU; batch is per GPU (global batch = 4 × 64).
+trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  data=dataset.yaml epochs=20 devices=4 batch=64 eval_every=5 device=cuda
 
 trhash train model=runs/train/step_001000 runtime=torch \
   data=dataset.yaml output=runs/train epochs=20 batch=64 device=cuda resume=true

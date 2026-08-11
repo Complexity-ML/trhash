@@ -14,7 +14,7 @@ Usage:
   trhash predict model=MODEL source=IMAGE_DIR_OR_VIDEO [batch=16] [stream=true]
   trhash track model=MODEL source=VIDEO_OR_STREAM [stream=true] [save=OUTPUT.mp4]
   trhash val model=MODEL data=DATASET.yaml [batch=16] [confidence=0.001]
-  trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
+  trhash train model=MODEL data=DATASET.yaml [epochs=20] [devices=1] [eval_every=5]
   trhash export model=MODEL [format=onnx|torchscript|coreml|tensorrt] [output=DIR]
   trhash benchmark model=MODEL source=IMAGE [formats=onnx,torchscript] [runs=20]
   trhash tune model=MODEL data=DATASET.yaml [iterations=10] [epochs=10] [resume=true]
