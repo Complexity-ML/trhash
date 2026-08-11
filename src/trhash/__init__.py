@@ -7,6 +7,7 @@ from .benchmarking import BenchmarkEntry, BenchmarkReport
 from .classification import ClassificationResult
 from .depth import DepthResult
 from .instance_segmentation import InstanceSegmentationResult
+from .obb import OBBResult
 from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
@@ -22,6 +23,7 @@ __all__ = [
     "ClassificationResult",
     "DepthResult",
     "InstanceSegmentationResult",
+    "OBBResult",
     "PoseResult",
     "Result",
     "SemanticSegmentationResult",

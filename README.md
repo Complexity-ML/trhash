@@ -229,13 +229,14 @@ from the research framework while preserving one `Vision` API everywhere.
 
 Bundle format v4 records the task and named graph outputs. Detection,
 classification, semantic segmentation, metric depth, pose, and instance
-segmentation currently have
+segmentation, and oriented bounding boxes currently have
 complete local checkpoint, ONNX, TorchScript, CoreML, TensorRT-compatible
 export, serving, and result paths. Pose heatmaps are decoded to named source
 image keypoints with peak scores and optional skeleton rendering. Instance
 segmentation combines prototype masks after NMS, restores them through the
-letterbox transform, and transports them losslessly as PNG. Only v4 bundles
-are accepted. OBB is the remaining task-specific runtime vertical.
+letterbox transform, and transports them losslessly as PNG. OBB predictions
+carry radian angles and render as rotated quadrilaterals. Only v4 bundles are
+accepted; all seven declared task families now have complete runtime paths.
 
 ## Remote endpoint
 

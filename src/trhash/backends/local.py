@@ -87,6 +87,9 @@ class LocalBackend(PortableDetectionBackend):
                     outputs[name].cpu().numpy()
                     for name in ("raw", "mask_coefficients", "prototypes")
                 )
+            if self.task == "obb":
+                outputs = self.model.forward_obb(values)
+                return outputs["raw"].cpu().numpy(), outputs["angles"].cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:

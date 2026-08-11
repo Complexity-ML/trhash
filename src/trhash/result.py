@@ -173,6 +173,10 @@ def result_from_payload(image: Image.Image, payload: Dict[str, Any]):
         from .instance_segmentation import InstanceSegmentationResult
 
         return InstanceSegmentationResult.from_payload(image, payload)
+    if task == "obb":
+        from .obb import OBBResult
+
+        return OBBResult.from_payload(image, payload)
     if task == "detection":
         return Result.from_payload(image, payload)
     raise ValueError(f"unsupported prediction task: {task}")

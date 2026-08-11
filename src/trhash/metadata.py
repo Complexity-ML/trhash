@@ -89,6 +89,11 @@ class ModelMetadata:
                     raise ValueError("instance bundles require mask graph outputs")
                 if int(metadata.task_options.get("num_prototypes", 0)) <= 0:
                     raise ValueError("instance bundles require num_prototypes")
+            if metadata.task == "obb":
+                if metadata.output_names != ("predictions", "angles"):
+                    raise ValueError("OBB bundles require predictions and angles")
+                if metadata.task_options.get("angle_unit") != "radians":
+                    raise ValueError("OBB bundles require radian angles")
         elif metadata.task == "classification":
             if metadata.score_encoding != "softmax":
                 raise ValueError("classification bundles require softmax scores")
@@ -220,6 +225,25 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
                 "num_prototypes": int(backend.model.num_prototypes),
                 "mask_threshold": 0.5,
             },
+        )
+    if task == "obb":
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=config.num_classes,
+            class_names=tuple(backend.names),
+            grid_sizes=tuple(config.grid_sizes),
+            reg_max=config.reg_max,
+            box_encoding="stride_ltrb_dfl",
+            score_encoding="quality_class_sigmoid",
+            recommended_confidence=float(
+                backend.validation.get("best_confidence", 0.25)
+            ),
+            output_names=("predictions", "angles"),
+            resize_mode="letterbox",
+            task_options={"angle_unit": "radians"},
         )
     if task != "detection":
         raise NotImplementedError(f"portable export is not implemented for task={task}")

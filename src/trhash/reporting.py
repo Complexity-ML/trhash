@@ -9,6 +9,7 @@ from typing import Iterable, Optional
 from .classification import ClassificationResult
 from .depth import DepthResult
 from .instance_segmentation import InstanceSegmentationResult
+from .obb import OBBResult
 from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
@@ -85,6 +86,7 @@ def emit_predictions(
             SemanticSegmentationResult,
             DepthResult,
             InstanceSegmentationResult,
+            OBBResult,
             PoseResult,
         ),
     )

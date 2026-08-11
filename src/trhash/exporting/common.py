@@ -28,6 +28,7 @@ class ExportVisionModel(torch.nn.Module):
                 "mask_coefficients",
                 "prototypes",
             ),
+            "obb": ("predictions", "angles"),
             "detection": ("predictions",),
         }.get(task, ("predictions",))
 
@@ -47,6 +48,9 @@ class ExportVisionModel(torch.nn.Module):
                 outputs["mask_coefficients"],
                 outputs["prototypes"],
             )
+        if self.task == "obb":
+            outputs = self.model.forward_obb(pixel_values)
+            return outputs["raw"], outputs["angles"]
         if self.task == "detection":
             return self.model.forward_predictions(pixel_values)
         raise NotImplementedError(f"portable export is not implemented for task={self.task}")

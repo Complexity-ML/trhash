@@ -10,6 +10,7 @@ from .backends.remote import RemoteBackend
 from .classification import ClassificationResult
 from .depth import DepthResult
 from .instance_segmentation import InstanceSegmentationResult
+from .obb import OBBResult
 from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
@@ -27,6 +28,7 @@ VisionResult = Union[
     SemanticSegmentationResult,
     DepthResult,
     InstanceSegmentationResult,
+    OBBResult,
     PoseResult,
 ]
 PredictionOutput = Union[VisionResult, list[VisionResult], Iterator[VisionResult]]

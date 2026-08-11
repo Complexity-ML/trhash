@@ -16,6 +16,7 @@ from ..depth import DepthResult
 from ..instance_segmentation import InstanceSegmentationResult
 from ..mask_decoding import decode_instance_masks
 from ..metadata import ModelMetadata
+from ..obb import OBBResult
 from ..pose import PoseResult
 from ..preprocessing import preprocess, restore_boxes
 from ..result import Result
@@ -57,7 +58,45 @@ class PortableDetectionBackend:
             else self.metadata.recommended_confidence
         )
         results = []
-        if self.metadata.task == "instance_segmentation":
+        if self.metadata.task == "obb":
+            if not isinstance(predictions, (tuple, list)) or len(predictions) != 2:
+                raise ValueError("OBB runtime must return predictions and angles")
+            raw_batch, angles_batch = predictions
+            expected_cells = sum(grid * grid for grid in self.metadata.grid_sizes)
+            if raw_batch.shape[0] != len(images) or angles_batch.shape != (
+                len(images),
+                expected_cells,
+            ):
+                raise ValueError("OBB graph outputs have invalid shapes")
+            for source, image, raw, angles, (_, geometry) in zip(
+                sources,
+                images,
+                raw_batch,
+                angles_batch,
+                prepared,
+            ):
+                boxes, scores, labels, indices = decode(
+                    raw,
+                    self.metadata,
+                    confidence=threshold,
+                    iou=iou,
+                    return_indices=True,
+                )
+                boxes = restore_boxes(boxes, self.metadata, geometry)
+                results.append(
+                    OBBResult(
+                        image=image,
+                        boxes=[
+                            (*tuple(float(value) for value in box), float(angles[index]))
+                            for box, index in zip(boxes, indices)
+                        ],
+                        scores=[float(value) for value in scores],
+                        labels=[int(value) for value in labels],
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
+        elif self.metadata.task == "instance_segmentation":
             if not isinstance(predictions, (tuple, list)) or len(predictions) != 3:
                 raise ValueError("instance runtime must return three graph outputs")
             raw_batch, coefficients_batch, prototypes_batch = predictions
@@ -263,6 +302,7 @@ def load_portable_backend(
         "depth",
         "pose",
         "instance_segmentation",
+        "obb",
     }:
         raise NotImplementedError(
             f"portable runtime is not implemented for task={metadata.task}"

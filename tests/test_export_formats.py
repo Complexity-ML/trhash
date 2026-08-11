@@ -11,6 +11,7 @@ from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
     InstanceSegmentationResult,
+    OBBResult,
     PoseResult,
     SemanticSegmentationResult,
     Vision,
@@ -161,6 +162,39 @@ def _instance_backend():
         model=TinyInstanceSegmenter(),
         task="instance_segmentation",
         names=("cat", "dog"),
+        validation={"best_confidence": 0.25},
+    )
+
+
+class TinyOBBDetector(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.config = SimpleNamespace(
+            image_size=16,
+            num_classes=2,
+            grid_sizes=(1,),
+            reg_max=0,
+        )
+        self.register_buffer(
+            "raw",
+            torch.tensor([[[0.0, 0.0, 0.0, 0.0, 4.0, -4.0]]]),
+        )
+        self.register_buffer("angles", torch.tensor([[0.4]]))
+
+    def forward_obb(self, pixel_values):
+        batch = pixel_values.shape[0]
+        adjustment = pixel_values.mean(dim=(1, 2, 3), keepdim=True)
+        return {
+            "raw": self.raw.expand(batch, -1, -1) + adjustment.reshape(batch, 1, 1) * 0.01,
+            "angles": self.angles.expand(batch, -1) + adjustment.reshape(batch, 1) * 0.001,
+        }
+
+
+def _obb_backend():
+    return SimpleNamespace(
+        model=TinyOBBDetector(),
+        task="obb",
+        names=("car", "plane"),
         validation={"best_confidence": 0.25},
     )
 
@@ -338,6 +372,32 @@ def test_instance_export_and_runtime(tmp_path: Path, format: str):
     assert result.masks[0].size == (24, 12)
     assert result.masks[0].getextrema() == (255, 255)
     assert result.to_dict()["task"] == "instance_segmentation"
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_obb_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _obb_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "obb"
+    assert metadata.output_names == ("predictions", "angles")
+    assert metadata.task_options == {"angle_unit": "radians"}
+    assert isinstance(result, OBBResult)
+    assert result.labels == [0]
+    assert result.boxes[0][4] == pytest.approx(0.400447, abs=1e-4)
+    assert result.to_dict()["task"] == "obb"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):

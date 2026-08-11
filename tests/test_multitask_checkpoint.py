@@ -15,6 +15,7 @@ from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
     InstanceSegmentationResult,
+    OBBResult,
     PoseResult,
     SemanticSegmentationResult,
     Vision,
@@ -153,3 +154,28 @@ def test_framework_instance_checkpoint_to_portable_bundle(tmp_path: Path):
     assert len(portable_result.masks) == len(local_result.masks)
     for actual, expected in zip(portable_result.masks, local_result.masks):
         assert actual.tobytes() == expected.tobytes()
+
+
+def test_framework_obb_checkpoint_to_portable_bundle(tmp_path: Path):
+    checkpoint = save_vision_task_checkpoint(
+        create_vision_model("obb", _config()),
+        tmp_path / "obb-checkpoint",
+        task="obb",
+        class_names=("car", "plane", "ship"),
+    )
+
+    local = Vision(checkpoint, runtime="torch", device="cpu")
+    local_result = local.predict(
+        Image.new("RGB", (40, 20), "white"),
+        confidence=0.0,
+    )
+    bundle = local.export(format="torchscript", output=tmp_path / "obb-bundle")
+    portable_result = Vision(bundle, device="cpu").predict(
+        Image.new("RGB", (40, 20), "white"),
+        confidence=0.0,
+    )
+
+    assert isinstance(local_result, OBBResult)
+    assert isinstance(portable_result, OBBResult)
+    assert portable_result.labels == local_result.labels
+    assert portable_result.boxes == pytest.approx(local_result.boxes, abs=1e-5)
