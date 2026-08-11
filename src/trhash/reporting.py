@@ -8,6 +8,7 @@ from typing import Iterable, Optional
 
 from .classification import ClassificationResult
 from .depth import DepthResult
+from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
 from .video import VIDEO_EXTENSIONS, VideoWriter, is_video_source
@@ -77,7 +78,13 @@ def emit_predictions(
 ) -> None:
     single_result = isinstance(
         result,
-        (Result, ClassificationResult, SemanticSegmentationResult, DepthResult),
+        (
+            Result,
+            ClassificationResult,
+            SemanticSegmentationResult,
+            DepthResult,
+            PoseResult,
+        ),
     )
     if is_video_source(source):
         results = (result,) if single_result else result

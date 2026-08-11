@@ -14,6 +14,7 @@ from complexity.generative.vision_tasks import (  # noqa: E402
 from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
+    PoseResult,
     SemanticSegmentationResult,
     Vision,
 )
@@ -102,3 +103,24 @@ def test_framework_depth_checkpoint_to_portable_bundle(tmp_path: Path):
         list(local_result.depth.get_flattened_data()),
         abs=1e-5,
     )
+
+
+def test_framework_pose_checkpoint_to_portable_bundle(tmp_path: Path):
+    checkpoint = save_vision_task_checkpoint(
+        create_vision_model("pose", _config(), num_keypoints=3),
+        tmp_path / "pose-checkpoint",
+        task="pose",
+        class_names=("nose", "left_eye", "right_eye"),
+    )
+
+    local = Vision(checkpoint, runtime="torch", device="cpu")
+    local_result = local.predict(Image.new("RGB", (40, 20), "white"))
+    bundle = local.export(format="torchscript", output=tmp_path / "pose-bundle")
+    portable_result = Vision(bundle, device="cpu").predict(
+        Image.new("RGB", (40, 20), "white")
+    )
+
+    assert isinstance(local_result, PoseResult)
+    assert isinstance(portable_result, PoseResult)
+    assert portable_result.names == ("nose", "left_eye", "right_eye")
+    assert portable_result.keypoints == pytest.approx(local_result.keypoints, abs=1e-5)

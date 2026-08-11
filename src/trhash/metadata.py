@@ -92,6 +92,13 @@ class ModelMetadata:
                 raise ValueError("depth bundles require metric_depth encoding")
             if metadata.output_names != ("depth",):
                 raise ValueError("depth bundles require a depth output")
+        elif metadata.task == "pose":
+            if metadata.score_encoding != "heatmap_sigmoid":
+                raise ValueError("pose bundles require sigmoid heatmap scores")
+            if metadata.output_names != ("heatmaps",):
+                raise ValueError("pose bundles require a heatmaps output")
+            if metadata.task_options.get("num_keypoints") != metadata.num_classes:
+                raise ValueError("pose num_keypoints must match num_classes")
         return metadata
 
     @classmethod
@@ -159,6 +166,24 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
             output_names=("depth",),
             resize_mode="stretch",
             task_options={"max_depth": backend.model.max_depth},
+        )
+    if task == "pose":
+        num_keypoints = int(backend.model.num_keypoints)
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=num_keypoints,
+            class_names=tuple(backend.names),
+            grid_sizes=(),
+            reg_max=0,
+            box_encoding="none",
+            score_encoding="heatmap_sigmoid",
+            recommended_confidence=0.25,
+            output_names=("heatmaps",),
+            resize_mode="stretch",
+            task_options={"num_keypoints": num_keypoints},
         )
     if task != "detection":
         raise NotImplementedError(f"portable export is not implemented for task={task}")

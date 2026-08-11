@@ -14,6 +14,7 @@ from ..classification import ClassificationResult
 from ..decoding import decode
 from ..depth import DepthResult
 from ..metadata import ModelMetadata
+from ..pose import PoseResult
 from ..preprocessing import preprocess, restore_boxes
 from ..result import Result
 from ..segmentation import SemanticSegmentationResult
@@ -117,6 +118,38 @@ class PortableDetectionBackend:
                         source=None if isinstance(source, Image.Image) else str(source),
                     )
                 )
+        elif self.metadata.task == "pose":
+            expected = (
+                len(images),
+                self.metadata.num_classes,
+                self.metadata.image_size,
+                self.metadata.image_size,
+            )
+            if predictions.shape != expected:
+                raise ValueError(
+                    "pose output must have shape [batch, keypoints, height, width]"
+                )
+            for source, image, heatmaps in zip(sources, images, predictions):
+                keypoints = []
+                height, width = heatmaps.shape[-2:]
+                for heatmap in heatmaps:
+                    flat_index = int(heatmap.argmax())
+                    row, column = divmod(flat_index, width)
+                    keypoints.append(
+                        (
+                            (column + 0.5) / width * image.width,
+                            (row + 0.5) / height * image.height,
+                            float(heatmap[row, column]),
+                        )
+                    )
+                results.append(
+                    PoseResult(
+                        image=image,
+                        keypoints=keypoints,
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
         else:
             for source, image, raw, (_, geometry) in zip(
                 sources,
@@ -168,6 +201,7 @@ def load_portable_backend(
         "classification",
         "semantic_segmentation",
         "depth",
+        "pose",
     }:
         raise NotImplementedError(
             f"portable runtime is not implemented for task={metadata.task}"

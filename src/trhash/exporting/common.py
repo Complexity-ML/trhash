@@ -14,15 +14,13 @@ class ExportVisionModel(torch.nn.Module):
         super().__init__()
         self.model = model
         self.task = task
-        self.output_names = (
-            ("depth",)
-            if task == "depth"
-            else (
-                ("logits",)
-                if task in {"classification", "semantic_segmentation"}
-                else ("predictions",)
-            )
-        )
+        self.output_names = {
+            "classification": ("logits",),
+            "semantic_segmentation": ("logits",),
+            "depth": ("depth",),
+            "pose": ("heatmaps",),
+            "detection": ("predictions",),
+        }.get(task, ("predictions",))
 
     def forward(self, pixel_values):
         if self.task == "classification":
@@ -31,6 +29,8 @@ class ExportVisionModel(torch.nn.Module):
             return self.model(pixel_values)["logits"]
         if self.task == "depth":
             return self.model(pixel_values)["depth"]
+        if self.task == "pose":
+            return self.model(pixel_values)["heatmaps"]
         if self.task == "detection":
             return self.model.forward_predictions(pixel_values)
         raise NotImplementedError(f"portable export is not implemented for task={self.task}")

@@ -6,6 +6,7 @@ from .model import Vision
 from .benchmarking import BenchmarkEntry, BenchmarkReport
 from .classification import ClassificationResult
 from .depth import DepthResult
+from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
 from .validation import ValidationMetrics
@@ -19,6 +20,7 @@ __all__ = [
     "ByteTracker",
     "ClassificationResult",
     "DepthResult",
+    "PoseResult",
     "Result",
     "SemanticSegmentationResult",
     "ValidationMetrics",

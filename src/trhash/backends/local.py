@@ -66,6 +66,8 @@ class LocalBackend(PortableDetectionBackend):
             return int(self.model.head.out_features)
         if self.task == "semantic_segmentation":
             return int(self.model.num_classes)
+        if self.task == "pose":
+            return int(self.model.num_keypoints)
         return int(self.model.config.num_classes)
 
     def _predict_raw(self, pixels):
@@ -77,6 +79,8 @@ class LocalBackend(PortableDetectionBackend):
                 return self.model(values)["logits"].cpu().numpy()
             if self.task == "depth":
                 return self.model(values)["depth"].cpu().numpy()
+            if self.task == "pose":
+                return self.model(values)["heatmaps"].cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:

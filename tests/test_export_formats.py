@@ -10,6 +10,7 @@ torch = pytest.importorskip("torch")
 from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
+    PoseResult,
     SemanticSegmentationResult,
     Vision,
 )
@@ -99,6 +100,27 @@ def _depth_backend():
         model=TinyDepthEstimator(),
         task="depth",
         names=(),
+        validation={},
+    )
+
+
+class TinyPoseEstimator(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.detector_config = SimpleNamespace(image_size=16)
+        self.num_keypoints = 2
+
+    def forward(self, pixel_values):
+        first = pixel_values[:, :1]
+        second = torch.flip(first, dims=(-1,))
+        return {"heatmaps": torch.sigmoid(torch.cat((first, second), dim=1))}
+
+
+def _pose_backend():
+    return SimpleNamespace(
+        model=TinyPoseEstimator(),
+        task="pose",
+        names=("nose", "tail"),
         validation={},
     )
 
@@ -218,6 +240,33 @@ def test_depth_export_and_runtime(tmp_path: Path, format: str):
     assert result.min_depth == pytest.approx(2.0)
     assert result.max_depth == pytest.approx(2.0)
     assert result.to_dict()["task"] == "depth"
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_pose_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _pose_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "pose"
+    assert metadata.output_names == ("heatmaps",)
+    assert metadata.task_options == {"num_keypoints": 2}
+    assert isinstance(result, PoseResult)
+    assert result.names == ("nose", "tail")
+    assert len(result.keypoints) == 2
+    assert all(0.0 <= x <= 24.0 and 0.0 <= y <= 12.0 for x, y, _ in result.keypoints)
+    assert result.to_dict()["task"] == "pose"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):
