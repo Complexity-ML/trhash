@@ -42,7 +42,7 @@ The CLI follows the familiar `key=value` model workflow:
 trhash predict model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC source=image.jpg save=prediction.jpg
 
 trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
-  data=dataset.yaml epochs=20 batch=64 device=cuda
+  data=dataset.yaml epochs=20 batch=64 augmentation=strong device=cuda
 
 trhash serve model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC host=0.0.0.0 port=8000
 ```
@@ -60,7 +60,9 @@ names:
 
 Labels use normalized YOLO rows: `class_id cx cy width height`. By default,
 `labels/train` and `labels/val` are inferred from the corresponding `images`
-directories.
+directories. Detection fine-tuning defaults to `augmentation=strong`; use
+`augmentation=light` for a controlled or low-data run. This is a training
+policy, not checkpoint architecture metadata.
 
 ## Export and production serving
 

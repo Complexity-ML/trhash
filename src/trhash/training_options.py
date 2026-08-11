@@ -39,8 +39,6 @@ def architecture_arguments(config) -> list[str]:
         str(config.box_l1_weight),
         "--box-iou-weight",
         str(config.box_iou_weight),
-        "--augmentation",
-        "strong",
     ]
     flags = (
         (not config.multi_scale, "--single-scale"),

@@ -12,7 +12,7 @@ USAGE = """TR-Hash Vision
 
 Usage:
   trhash predict model=MODEL source=IMAGE [confidence=0.25] [save=OUTPUT]
-  trhash train model=MODEL data=DATASET.yaml [epochs=20] [batch=16] [device=cuda]
+  trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
   trhash export model=MODEL [output=runs/export] [opset=18]
   trhash publish bundle=BUNDLE repo=ORG/MODEL [private=true]
   trhash serve model=MODEL [host=127.0.0.1] [port=8000]

@@ -27,9 +27,12 @@ class FineTuner:
         device: Optional[str] = None,
         lr: float = 1e-2,
         expert_lr_multiplier: float = 1.5,
+        augmentation: str = "strong",
         seed: int = 42,
         extra_args: Sequence[str] = (),
     ) -> Path:
+        if augmentation not in {"light", "strong"}:
+            raise ValueError("augmentation must be light or strong")
         dataset = load_dataset(data)
         observed_classes = observed_class_count(dataset.train_labels)
         if observed_classes != len(dataset.names):
@@ -76,6 +79,8 @@ class FineTuner:
             str(lr),
             "--expert-lr-multiplier",
             str(expert_lr_multiplier),
+            "--augmentation",
+            augmentation,
             "--seed",
             str(seed),
             "--device",

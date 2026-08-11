@@ -35,4 +35,5 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
     assert arguments[arguments.index("--vision-num-experts") + 1] == "4"
     assert arguments[arguments.index("--reg-max") + 1] == "16"
     assert "--objectness-loss-weight" not in arguments
+    assert "--augmentation" not in arguments
     assert "--p2-head" in arguments

@@ -56,6 +56,7 @@ def train(options: Dict[str, str]) -> None:
         "workers": int(options.pop("workers", "0")),
         "lr": float(options.pop("lr", "0.01")),
         "expert_lr_multiplier": float(options.pop("expert_lr_multiplier", "1.5")),
+        "augmentation": options.pop("augmentation", "strong"),
         "seed": int(options.pop("seed", "42")),
     }
     training_device = options.get("device")
