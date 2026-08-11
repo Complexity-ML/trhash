@@ -22,14 +22,26 @@ class ImageGeometry:
 def preprocess(image: Image.Image, metadata: ModelMetadata) -> tuple[np.ndarray, ImageGeometry]:
     image = image.convert("RGB")
     width, height = image.size
-    scale = min(metadata.image_size / width, metadata.image_size / height)
-    resized_width = max(1, round(width * scale))
-    resized_height = max(1, round(height * scale))
-    left = (metadata.image_size - resized_width) // 2
-    top = (metadata.image_size - resized_height) // 2
-    resized = image.resize((resized_width, resized_height), Image.Resampling.BILINEAR)
-    canvas = Image.new("RGB", (metadata.image_size, metadata.image_size), metadata.letterbox_color)
-    canvas.paste(resized, (left, top))
+    if metadata.resize_mode == "stretch":
+        scale = metadata.image_size / max(width, height)
+        left = top = 0
+        canvas = image.resize(
+            (metadata.image_size, metadata.image_size),
+            Image.Resampling.BILINEAR,
+        )
+    else:
+        scale = min(metadata.image_size / width, metadata.image_size / height)
+        resized_width = max(1, round(width * scale))
+        resized_height = max(1, round(height * scale))
+        left = (metadata.image_size - resized_width) // 2
+        top = (metadata.image_size - resized_height) // 2
+        resized = image.resize((resized_width, resized_height), Image.Resampling.BILINEAR)
+        canvas = Image.new(
+            "RGB",
+            (metadata.image_size, metadata.image_size),
+            metadata.letterbox_color,
+        )
+        canvas.paste(resized, (left, top))
     pixels = np.asarray(canvas, dtype=np.float32).transpose(2, 0, 1) / 255.0
     mean = np.asarray(metadata.image_mean, dtype=np.float32)[:, None, None]
     std = np.asarray(metadata.image_std, dtype=np.float32)[:, None, None]

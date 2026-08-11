@@ -55,7 +55,10 @@ class OnnxBackend(PortableDetectionBackend):
         self.names = self.metadata.class_names
 
     def _predict_raw(self, pixels: np.ndarray) -> np.ndarray:
-        return self.session.run(("predictions",), {"pixel_values": pixels})[0]
+        return self.session.run(
+            (self.metadata.output_names[0],),
+            {"pixel_values": pixels},
+        )[0]
 
     def serve(self, **options) -> None:
         from ..server.runner import run_server

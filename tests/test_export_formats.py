@@ -7,7 +7,7 @@ from PIL import Image
 
 torch = pytest.importorskip("torch")
 
-from trhash import Vision  # noqa: E402
+from trhash import ClassificationResult, Vision  # noqa: E402
 from trhash.exporter import export_model  # noqa: E402
 from trhash.metadata import ModelMetadata  # noqa: E402
 
@@ -36,6 +36,26 @@ def _backend():
         model=TinyDetector(),
         names=("cat", "dog"),
         validation={"best_confidence": 0.25},
+    )
+
+
+class TinyClassifier(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.register_buffer("base", torch.tensor([[1.0, 3.0, -1.0]]))
+        self.detector_config = SimpleNamespace(image_size=16)
+
+    def forward(self, pixel_values):
+        adjustment = pixel_values.mean(dim=(1, 2, 3), keepdim=False)[:, None]
+        return {"logits": self.base.expand(pixel_values.shape[0], -1) + adjustment * 0.01}
+
+
+def _classification_backend():
+    return SimpleNamespace(
+        model=TinyClassifier(),
+        task="classification",
+        names=("cat", "dog", "bird"),
+        validation={},
     )
 
 
@@ -77,6 +97,32 @@ def test_onnx_export_parity_and_auto_runtime(tmp_path: Path):
 
     assert type(model.backend).__name__ == "OnnxBackend"
     assert result.labels == [0]
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_classification_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _classification_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "classification"
+    assert metadata.output_names == ("logits",)
+    assert isinstance(result, ClassificationResult)
+    assert result.top1 == 1
+    assert result.names[result.top1] == "dog"
+    assert sum(result.scores) == pytest.approx(1.0)
+    assert result.to_dict()["task"] == "classification"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):

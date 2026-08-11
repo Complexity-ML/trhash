@@ -23,7 +23,7 @@ def _verify_onnx(model_path: Path, reference, inputs) -> None:
     with torch.inference_mode():
         for values in inputs:
             expected = reference(values).detach().cpu().numpy()
-            actual = session.run(("predictions",), {"pixel_values": values.numpy()})[0]
+            actual = session.run(reference.output_names, {"pixel_values": values.numpy()})[0]
             np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-4)
 
 
@@ -37,18 +37,17 @@ def export_onnx(
 ) -> Path:
     output_path, detector, example = prepare_export(backend, output)
     model_path = output_path / "model.onnx"
-    dynamic_axes = (
-        {"pixel_values": {0: "batch"}, "predictions": {0: "batch"}}
-        if dynamic_batch
-        else None
-    )
+    dynamic_axes = None
+    if dynamic_batch:
+        dynamic_axes = {"pixel_values": {0: "batch"}}
+        dynamic_axes.update({name: {0: "batch"} for name in detector.output_names})
     with torch.inference_mode():
         torch.onnx.export(
             detector,
             example,
             str(model_path),
             input_names=("pixel_values",),
-            output_names=("predictions",),
+            output_names=detector.output_names,
             dynamic_axes=dynamic_axes,
             opset_version=opset,
             do_constant_folding=True,

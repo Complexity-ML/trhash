@@ -84,6 +84,7 @@ class Result:
                 detection["track_id"] = track_id
             detections.append(detection)
         payload = {
+            "task": "detection",
             "image": {"width": self.image.width, "height": self.image.height},
             "detections": detections,
         }
@@ -148,3 +149,14 @@ class Result:
         output.parent.mkdir(parents=True, exist_ok=True)
         self.plot(**plot_options).save(output)
         return output.resolve()
+
+
+def result_from_payload(image: Image.Image, payload: Dict[str, Any]):
+    task = payload.get("task", "detection")
+    if task == "classification":
+        from .classification import ClassificationResult
+
+        return ClassificationResult.from_payload(image, payload)
+    if task == "detection":
+        return Result.from_payload(image, payload)
+    raise ValueError(f"unsupported prediction task: {task}")

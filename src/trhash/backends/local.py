@@ -25,6 +25,7 @@ class LocalBackend(PortableDetectionBackend):
             load_checkpoint,
             self.preprocess,
             self.restore_boxes,
+            load_vision_task_checkpoint,
         ) = imports()
         self.checkpoint = resolve_checkpoint(
             model,
@@ -33,7 +34,14 @@ class LocalBackend(PortableDetectionBackend):
         )
         self.model_id = str(model)
         self.device = resolve_device(self.torch, device)
-        self.model = load_checkpoint(self.checkpoint, device=self.device)
+        task_path = self.checkpoint / "vision_task.json"
+        if task_path.is_file():
+            manifest = json.loads(task_path.read_text())
+            self.task = str(manifest.get("task"))
+            self.model = load_vision_task_checkpoint(self.checkpoint, device=self.device)
+        else:
+            self.task = "detection"
+            self.model = load_checkpoint(self.checkpoint, device=self.device)
         names_path = self.checkpoint / "class_names.json"
         if not names_path.is_file():
             # Interrupted fine-tunes leave shared metadata at the run root.
@@ -41,22 +49,33 @@ class LocalBackend(PortableDetectionBackend):
         self.names = (
             tuple(str(name) for name in json.loads(names_path.read_text()))
             if names_path.exists()
-            else tuple(str(index) for index in range(self.model.config.num_classes))
+            else tuple(str(index) for index in range(self._num_classes()))
         )
-        if len(self.names) != self.model.config.num_classes:
-            raise ValueError("class_names.json does not match the detector class count")
+        if len(self.names) != self._num_classes():
+            raise ValueError("class_names.json does not match the model class count")
         validation_path = self.checkpoint / "validation.json"
         self.validation = (
             json.loads(validation_path.read_text()) if validation_path.exists() else {}
         )
         self.metadata = metadata_from_checkpoint(self)
 
+    def _num_classes(self) -> int:
+        if self.task == "classification":
+            return int(self.model.head.out_features)
+        return int(self.model.config.num_classes)
+
     def _predict_raw(self, pixels):
         with self.torch.inference_mode():
             values = self.torch.from_numpy(pixels).to(self.device)
+            if self.task == "classification":
+                return self.model(values)["logits"].cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:
+        if self.task != "detection":
+            raise NotImplementedError(
+                f"fine-tuning is not implemented for task={self.task}"
+            )
         from ..training import FineTuner
 
         return FineTuner(self).run(**options)

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from .model import Vision
 from .benchmarking import BenchmarkEntry, BenchmarkReport
+from .classification import ClassificationResult
 from .result import Result
 from .validation import ValidationMetrics
 
@@ -14,6 +15,7 @@ __all__ = [
     "BenchmarkEntry",
     "BenchmarkReport",
     "ByteTracker",
+    "ClassificationResult",
     "Result",
     "ValidationMetrics",
     "Vision",

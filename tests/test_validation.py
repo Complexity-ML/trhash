@@ -1,5 +1,7 @@
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 from PIL import Image
 
 from trhash import Result, Vision
@@ -78,3 +80,11 @@ def test_val_ignores_out_of_range_remote_labels_without_key_error(tmp_path: Path
     assert metrics.precision == 0.0
     assert metrics.recall == 0.0
     assert metrics.predictions == 2
+
+
+def test_detection_val_rejects_classification_model(tmp_path: Path):
+    model = Vision.__new__(Vision)
+    model.backend = SimpleNamespace(metadata=SimpleNamespace(task="classification"))
+
+    with pytest.raises(ValueError, match="requires a detection model"):
+        model.val(data=tmp_path / "unused.yaml")

@@ -10,7 +10,7 @@ from typing import Optional, Union
 import httpx
 from PIL import Image
 
-from ..result import Result
+from ..result import result_from_payload
 
 ImageSource = Union[str, Path, Image.Image]
 
@@ -45,7 +45,7 @@ class RemoteBackend:
         *,
         confidence: Optional[float] = None,
         iou: float = 0.45,
-    ) -> Result:
+    ):
         started = time.perf_counter()
         image, content, filename = self._image_bytes(source)
         params = {"iou_threshold": iou}
@@ -57,7 +57,7 @@ class RemoteBackend:
             files={"file": (filename, content, "application/octet-stream")},
         )
         response.raise_for_status()
-        result = Result.from_payload(image, response.json())
+        result = result_from_payload(image, response.json())
         result.speed["network"] = (time.perf_counter() - started) * 1000.0
         result.source = None if isinstance(source, Image.Image) else str(source)
         return result

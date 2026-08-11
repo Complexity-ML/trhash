@@ -34,6 +34,11 @@ print(result.speed)  # preprocess/inference/postprocess milliseconds per image
 result.plot(labels=True, conf=True, line_width=2)
 result.show(labels=False)
 
+# Task-aware bundles return a dedicated result type.
+classification = Vision("AETHORIA-AI/TR-HASH-Vision-Classifier")
+prediction = classification.predict("image.jpg")
+print(prediction.names[prediction.top1], prediction.top1_confidence)
+
 metrics = model.val(data="dataset.yaml", batch=16)
 print(metrics.map50, metrics.precision, metrics.recall)
 
@@ -209,6 +214,15 @@ continue to use the same `Vision(endpoint=...)` API.
 
 This separation keeps the public inference/server installation independent
 from the research framework while preserving one `Vision` API everywhere.
+
+## Vision tasks
+
+Bundle format v4 records the task and named graph outputs. Detection and
+classification currently have complete local checkpoint, ONNX, TorchScript,
+CoreML, TensorRT-compatible export, serving, and result paths. Only v4 bundles
+are accepted. The shared manifest is ready for instance and semantic
+segmentation, depth, pose, and OBB; their task-specific result decoders are
+intentionally added one at a time with parity tests.
 
 ## Remote endpoint
 

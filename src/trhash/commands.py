@@ -171,6 +171,7 @@ def info(options: Dict[str, str]) -> None:
     model = vision(options)
     reject_unknown(options)
     backend = model.backend
+    metadata = getattr(backend, "metadata", None)
     payload = {
         "model": backend.model_id,
         "backend": type(backend).__name__,
@@ -178,6 +179,7 @@ def info(options: Dict[str, str]) -> None:
         "bundle": str(getattr(backend, "bundle", "")) or None,
         "checkpoint": str(getattr(backend, "checkpoint", "")) or None,
         "providers": getattr(backend, "providers", None),
+        "task": getattr(metadata, "task", getattr(backend, "task", None)),
     }
     print(json.dumps(payload, indent=2))
 

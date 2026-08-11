@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from typing import Optional, Union
 
 from .backends.remote import RemoteBackend
+from .classification import ClassificationResult
 from .result import Result
 from .sources import (
     PredictionSource,
@@ -16,7 +17,8 @@ from .sources import (
     inference_source,
 )
 
-PredictionOutput = Union[Result, list[Result], Iterator[Result]]
+VisionResult = Union[Result, ClassificationResult]
+PredictionOutput = Union[VisionResult, list[VisionResult], Iterator[VisionResult]]
 
 
 class Vision:
@@ -70,7 +72,7 @@ class Vision:
     ) -> PredictionOutput:
         sources, single = expand_sources(source)
 
-        def generate() -> Iterator[Result]:
+        def generate() -> Iterator[VisionResult]:
             try:
                 predict_batch = getattr(self.backend, "predict_batch", None)
                 for group in chunks(sources, batch):
@@ -151,6 +153,8 @@ class Vision:
         def generate() -> Iterator[Result]:
             try:
                 for result in detections:
+                    if not isinstance(result, Result):
+                        raise RuntimeError("tracking requires a detection model")
                     result.track_ids = tracker.update(
                         result.boxes,
                         result.scores,

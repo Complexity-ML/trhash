@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Tuple, Union
+
+SUPPORTED_TASKS = {
+    "detection",
+    "instance_segmentation",
+    "semantic_segmentation",
+    "depth",
+    "classification",
+    "pose",
+    "obb",
+}
 
 
 @dataclass(frozen=True)
@@ -24,25 +34,52 @@ class ModelMetadata:
     letterbox_color: Tuple[int, int, int] = (114, 114, 114)
     image_mean: Tuple[float, float, float] = (0.5, 0.5, 0.5)
     image_std: Tuple[float, float, float] = (0.5, 0.5, 0.5)
+    output_names: Tuple[str, ...] = ("predictions",)
+    resize_mode: str = "letterbox"
+    task_options: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, values: Dict[str, Any]) -> "ModelMetadata":
         values = dict(values)
-        for field in ("class_names", "grid_sizes", "letterbox_color", "image_mean", "image_std"):
-            values[field] = tuple(values[field])
+        values.setdefault("output_names", ("predictions",))
+        values.setdefault("resize_mode", "letterbox")
+        values.setdefault("task_options", {})
+        for field_name in (
+            "class_names",
+            "grid_sizes",
+            "letterbox_color",
+            "image_mean",
+            "image_std",
+            "output_names",
+        ):
+            values[field_name] = tuple(values[field_name])
         metadata = cls(**values)
-        if metadata.format_version != 2 or metadata.task != "detection":
+        if metadata.format_version != 4 or metadata.task not in SUPPORTED_TASKS:
             raise ValueError("unsupported TR-Hash model bundle")
         if Path(metadata.model_file).name != metadata.model_file:
             raise ValueError("model_file must be a filename inside the bundle")
         if len(metadata.class_names) != metadata.num_classes:
             raise ValueError("class_names must match num_classes")
-        if metadata.reg_max < 0 or metadata.reg_max == 1:
-            raise ValueError("reg_max must be 0 or at least 2")
-        if metadata.box_encoding != "stride_ltrb_dfl":
-            raise ValueError("unsupported box encoding")
-        if metadata.score_encoding != "quality_class_sigmoid":
-            raise ValueError("unsupported score encoding")
+        if not metadata.output_names or len(set(metadata.output_names)) != len(
+            metadata.output_names
+        ):
+            raise ValueError("output_names must be non-empty and unique")
+        if metadata.resize_mode not in {"letterbox", "stretch"}:
+            raise ValueError("unsupported resize mode")
+        if not isinstance(metadata.task_options, dict):
+            raise ValueError("task_options must be an object")
+        if metadata.task in {"detection", "instance_segmentation", "obb"}:
+            if metadata.reg_max < 0 or metadata.reg_max == 1:
+                raise ValueError("reg_max must be 0 or at least 2")
+            if metadata.box_encoding != "stride_ltrb_dfl":
+                raise ValueError("unsupported box encoding")
+            if metadata.score_encoding != "quality_class_sigmoid":
+                raise ValueError("unsupported score encoding")
+        elif metadata.task == "classification":
+            if metadata.score_encoding != "softmax":
+                raise ValueError("classification bundles require softmax scores")
+            if metadata.output_names != ("logits",):
+                raise ValueError("classification bundles require a logits output")
         return metadata
 
     @classmethod
@@ -56,9 +93,31 @@ class ModelMetadata:
 
 
 def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMetadata:
-    config = backend.model.config
+    task = str(getattr(backend, "task", getattr(backend.model, "vision_task", "detection")))
+    config = getattr(backend.model, "config", None) or getattr(
+        backend.model, "detector_config", None
+    )
+    if task == "classification":
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=len(backend.names),
+            class_names=tuple(backend.names),
+            grid_sizes=(),
+            reg_max=0,
+            box_encoding="none",
+            score_encoding="softmax",
+            recommended_confidence=0.0,
+            output_names=("logits",),
+            resize_mode="stretch",
+            task_options={},
+        )
+    if task != "detection":
+        raise NotImplementedError(f"portable export is not implemented for task={task}")
     return ModelMetadata(
-        format_version=2,
+        format_version=4,
         task="detection",
         model_file=model_file,
         image_size=config.image_size,
@@ -69,4 +128,6 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         box_encoding="stride_ltrb_dfl",
         score_encoding="quality_class_sigmoid",
         recommended_confidence=float(backend.validation.get("best_confidence", 0.25)),
+        output_names=("predictions",),
+        task_options={},
     )

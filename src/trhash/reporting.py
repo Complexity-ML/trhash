@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional
 
+from .classification import ClassificationResult
 from .result import Result
 from .video import VIDEO_EXTENSIONS, VideoWriter, is_video_source
 
@@ -28,7 +29,7 @@ def _video_output(source, save: str, task: str) -> Path:
 
 
 def _emit_video(
-    results: Iterable[Result],
+    results: Iterable,
     *,
     source,
     save: Optional[str],
@@ -65,18 +66,19 @@ def _emit_video(
 
 
 def emit_predictions(
-    result: Union[Result, Iterable[Result]],
+    result,
     *,
     source,
     save: Optional[str],
     stream: bool,
     task: str = "predict",
 ) -> None:
+    single_result = isinstance(result, (Result, ClassificationResult))
     if is_video_source(source):
-        results = (result,) if isinstance(result, Result) else result
+        results = (result,) if single_result else result
         _emit_video(results, source=source, save=save, stream=stream, task=task)
         return
-    if isinstance(result, Result):
+    if single_result:
         payload = result.to_dict()
         if save is not None:
             output = (

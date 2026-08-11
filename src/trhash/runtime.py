@@ -14,6 +14,7 @@ def imports():
             preprocess_detector_image,
             restore_detector_boxes,
         )
+        from complexity.generative.vision_tasks import load_vision_task_checkpoint
     except ImportError as error:
         raise RuntimeError(
             'local execution requires PyTorch and `pip install "trhash[local]"`'
@@ -23,6 +24,7 @@ def imports():
         load_detector_checkpoint,
         preprocess_detector_image,
         restore_detector_boxes,
+        load_vision_task_checkpoint,
     )
 
 
@@ -61,6 +63,7 @@ def resolve_checkpoint(
                 "model.safetensors",
                 "class_names.json",
                 "validation.json",
+                "vision_task.json",
             ),
         )
     )

@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 
 from ..bundle import resolve_bundle
+from ..classification import ClassificationResult
 from ..decoding import decode
 from ..metadata import ModelMetadata
 from ..preprocessing import preprocess, restore_boxes
@@ -51,19 +52,47 @@ class PortableDetectionBackend:
             else self.metadata.recommended_confidence
         )
         results = []
-        for source, image, raw, (_, geometry) in zip(sources, images, predictions, prepared):
-            boxes, scores, labels = decode(raw, self.metadata, confidence=threshold, iou=iou)
-            boxes = restore_boxes(boxes, self.metadata, geometry)
-            results.append(
-                Result(
-                    image=image,
-                    boxes=[tuple(float(value) for value in box) for box in boxes],
-                    scores=[float(value) for value in scores],
-                    labels=[int(value) for value in labels],
-                    names=self.names,
-                    source=None if isinstance(source, Image.Image) else str(source),
+        if self.metadata.task == "classification":
+            if predictions.ndim != 2 or predictions.shape[1] != self.metadata.num_classes:
+                raise ValueError("classification output must have shape [batch, classes]")
+            shifted = predictions - predictions.max(axis=1, keepdims=True)
+            probabilities = np.exp(shifted)
+            probabilities /= probabilities.sum(axis=1, keepdims=True)
+            for source, image, scores in zip(sources, images, probabilities):
+                labels = np.argsort(-scores)
+                results.append(
+                    ClassificationResult(
+                        image=image,
+                        scores=[float(scores[label]) for label in labels],
+                        labels=[int(label) for label in labels],
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
                 )
-            )
+        else:
+            for source, image, raw, (_, geometry) in zip(
+                sources,
+                images,
+                predictions,
+                prepared,
+            ):
+                boxes, scores, labels = decode(
+                    raw,
+                    self.metadata,
+                    confidence=threshold,
+                    iou=iou,
+                )
+                boxes = restore_boxes(boxes, self.metadata, geometry)
+                results.append(
+                    Result(
+                        image=image,
+                        boxes=[tuple(float(value) for value in box) for box in boxes],
+                        scores=[float(value) for value in scores],
+                        labels=[int(value) for value in labels],
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
         finished = time.perf_counter()
         count = max(len(images), 1)
         speed = {
@@ -86,6 +115,10 @@ def load_portable_backend(
 ):
     bundle = resolve_bundle(model, revision=revision, token=token)
     metadata = ModelMetadata.load(bundle)
+    if metadata.task not in {"detection", "classification"}:
+        raise NotImplementedError(
+            f"portable runtime is not implemented for task={metadata.task}"
+        )
     extension = Path(metadata.model_file).suffix.casefold()
     runtime_by_extension = {
         ".onnx": "onnx",

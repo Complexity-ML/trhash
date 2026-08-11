@@ -146,6 +146,10 @@ def validate(
     batch: int = 16,
     max_images: Optional[int] = None,
 ) -> ValidationMetrics:
+    metadata = getattr(model.backend, "metadata", None)
+    task = getattr(metadata, "task", getattr(model.backend, "task", "detection"))
+    if task != "detection":
+        raise ValueError("detection val() requires a detection model")
     dataset = load_dataset(data)
     if dataset.validation_images is None or dataset.validation_labels is None:
         raise ValueError("dataset YAML must define a validation split with 'val'")

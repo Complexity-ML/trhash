@@ -1,6 +1,8 @@
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
 
 from trhash.decoding import decode
@@ -10,7 +12,7 @@ from trhash.preprocessing import preprocess, restore_boxes
 
 def _metadata(**overrides) -> ModelMetadata:
     values = {
-        "format_version": 2,
+        "format_version": 4,
         "task": "detection",
         "model_file": "model.onnx",
         "image_size": 32,
@@ -32,6 +34,14 @@ def test_metadata_round_trip(tmp_path: Path):
     metadata.save(tmp_path)
 
     assert ModelMetadata.load(tmp_path) == metadata
+
+
+def test_only_bundle_format_v4_is_accepted():
+    values = asdict(_metadata())
+    values["format_version"] = 2
+
+    with pytest.raises(ValueError, match="unsupported TR-Hash model bundle"):
+        ModelMetadata.from_dict(values)
 
 
 def test_numpy_decode_quality_ltrb_prediction():
