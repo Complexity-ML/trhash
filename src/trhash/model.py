@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from .backends.remote import RemoteBackend
 from .classification import ClassificationResult
+from .depth import DepthResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
 from .sources import (
@@ -18,7 +19,12 @@ from .sources import (
     inference_source,
 )
 
-VisionResult = Union[Result, ClassificationResult, SemanticSegmentationResult]
+VisionResult = Union[
+    Result,
+    ClassificationResult,
+    SemanticSegmentationResult,
+    DepthResult,
+]
 PredictionOutput = Union[VisionResult, list[VisionResult], Iterator[VisionResult]]
 
 

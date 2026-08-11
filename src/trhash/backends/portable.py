@@ -12,6 +12,7 @@ from PIL import Image
 from ..bundle import resolve_bundle
 from ..classification import ClassificationResult
 from ..decoding import decode
+from ..depth import DepthResult
 from ..metadata import ModelMetadata
 from ..preprocessing import preprocess, restore_boxes
 from ..result import Result
@@ -95,6 +96,27 @@ class PortableDetectionBackend:
                         source=None if isinstance(source, Image.Image) else str(source),
                     )
                 )
+        elif self.metadata.task == "depth":
+            expected = (
+                len(images),
+                1,
+                self.metadata.image_size,
+                self.metadata.image_size,
+            )
+            if predictions.shape != expected:
+                raise ValueError("depth output must have shape [batch, 1, height, width]")
+            for source, image, depth_map in zip(sources, images, predictions[:, 0]):
+                depth = Image.fromarray(depth_map.astype(np.float32), mode="F").resize(
+                    image.size,
+                    Image.Resampling.BILINEAR,
+                )
+                results.append(
+                    DepthResult(
+                        image=image,
+                        depth=depth,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
         else:
             for source, image, raw, (_, geometry) in zip(
                 sources,
@@ -141,7 +163,12 @@ def load_portable_backend(
 ):
     bundle = resolve_bundle(model, revision=revision, token=token)
     metadata = ModelMetadata.load(bundle)
-    if metadata.task not in {"detection", "classification", "semantic_segmentation"}:
+    if metadata.task not in {
+        "detection",
+        "classification",
+        "semantic_segmentation",
+        "depth",
+    }:
         raise NotImplementedError(
             f"portable runtime is not implemented for task={metadata.task}"
         )

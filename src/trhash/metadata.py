@@ -85,6 +85,13 @@ class ModelMetadata:
                 raise ValueError("semantic bundles require per-pixel softmax scores")
             if metadata.output_names != ("logits",):
                 raise ValueError("semantic bundles require a logits output")
+        elif metadata.task == "depth":
+            if metadata.num_classes != 0 or metadata.class_names:
+                raise ValueError("depth bundles must not declare classes")
+            if metadata.score_encoding != "metric_depth":
+                raise ValueError("depth bundles require metric_depth encoding")
+            if metadata.output_names != ("depth",):
+                raise ValueError("depth bundles require a depth output")
         return metadata
 
     @classmethod
@@ -135,6 +142,23 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
             output_names=("logits",),
             resize_mode="stretch",
             task_options={},
+        )
+    if task == "depth":
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=0,
+            class_names=(),
+            grid_sizes=(),
+            reg_max=0,
+            box_encoding="none",
+            score_encoding="metric_depth",
+            recommended_confidence=0.0,
+            output_names=("depth",),
+            resize_mode="stretch",
+            task_options={"max_depth": backend.model.max_depth},
         )
     if task != "detection":
         raise NotImplementedError(f"portable export is not implemented for task={task}")

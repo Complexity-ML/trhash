@@ -11,7 +11,12 @@ from complexity.generative.vision_tasks import (  # noqa: E402
     create_vision_model,
     save_vision_task_checkpoint,
 )
-from trhash import ClassificationResult, SemanticSegmentationResult, Vision  # noqa: E402
+from trhash import (  # noqa: E402
+    ClassificationResult,
+    DepthResult,
+    SemanticSegmentationResult,
+    Vision,
+)
 
 
 def _config() -> TRHashDetectorConfig:
@@ -73,4 +78,27 @@ def test_framework_semantic_checkpoint_to_portable_bundle(tmp_path: Path):
     assert portable_result.mask.size == (40, 20)
     assert list(portable_result.mask.get_flattened_data()) == list(
         local_result.mask.get_flattened_data()
+    )
+
+
+def test_framework_depth_checkpoint_to_portable_bundle(tmp_path: Path):
+    checkpoint = save_vision_task_checkpoint(
+        create_vision_model("depth", _config(), max_depth=80.0),
+        tmp_path / "depth-checkpoint",
+        task="depth",
+    )
+
+    local = Vision(checkpoint, runtime="torch", device="cpu")
+    local_result = local.predict(Image.new("RGB", (40, 20), "white"))
+    bundle = local.export(format="torchscript", output=tmp_path / "depth-bundle")
+    portable_result = Vision(bundle, device="cpu").predict(
+        Image.new("RGB", (40, 20), "white")
+    )
+
+    assert isinstance(local_result, DepthResult)
+    assert isinstance(portable_result, DepthResult)
+    assert portable_result.depth.size == (40, 20)
+    assert list(portable_result.depth.get_flattened_data()) == pytest.approx(
+        list(local_result.depth.get_flattened_data()),
+        abs=1e-5,
     )

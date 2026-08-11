@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from .model import Vision
 from .benchmarking import BenchmarkEntry, BenchmarkReport
 from .classification import ClassificationResult
+from .depth import DepthResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
 from .validation import ValidationMetrics
@@ -17,6 +18,7 @@ __all__ = [
     "BenchmarkReport",
     "ByteTracker",
     "ClassificationResult",
+    "DepthResult",
     "Result",
     "SemanticSegmentationResult",
     "ValidationMetrics",

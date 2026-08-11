@@ -60,6 +60,8 @@ class LocalBackend(PortableDetectionBackend):
         self.metadata = metadata_from_checkpoint(self)
 
     def _num_classes(self) -> int:
+        if self.task == "depth":
+            return 0
         if self.task == "classification":
             return int(self.model.head.out_features)
         if self.task == "semantic_segmentation":
@@ -73,6 +75,8 @@ class LocalBackend(PortableDetectionBackend):
                 return self.model(values)["logits"].cpu().numpy()
             if self.task == "semantic_segmentation":
                 return self.model(values)["logits"].cpu().numpy()
+            if self.task == "depth":
+                return self.model(values)["depth"].cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:

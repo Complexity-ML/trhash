@@ -44,6 +44,11 @@ segmentation = segmenter.predict("street.jpg")
 segmentation.save("street-overlay.png", alpha=0.45)
 segmentation.save_mask("street-mask.png")
 
+depth_model = Vision("AETHORIA-AI/TR-HASH-Vision-Depth")
+depth = depth_model.predict("room.jpg")
+depth.save("room-depth-color.png")
+depth.save_depth("room-depth-float32.tiff")
+
 metrics = model.val(data="dataset.yaml", batch=16)
 print(metrics.map50, metrics.precision, metrics.recall)
 
@@ -223,11 +228,11 @@ from the research framework while preserving one `Vision` API everywhere.
 ## Vision tasks
 
 Bundle format v4 records the task and named graph outputs. Detection,
-classification, and semantic segmentation currently have complete local
-checkpoint, ONNX, TorchScript, CoreML, TensorRT-compatible export, serving,
-and result paths. Only v4 bundles are accepted. The shared manifest is ready
-for instance segmentation, depth, pose, and OBB; their task-specific result
-decoders are intentionally added one at a time with parity tests.
+classification, semantic segmentation, and metric depth currently have
+complete local checkpoint, ONNX, TorchScript, CoreML, TensorRT-compatible
+export, serving, and result paths. Only v4 bundles are accepted. The shared
+manifest is ready for instance segmentation, pose, and OBB; their task-specific
+result decoders are intentionally added one at a time with parity tests.
 
 ## Remote endpoint
 

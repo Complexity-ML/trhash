@@ -7,7 +7,12 @@ from PIL import Image
 
 torch = pytest.importorskip("torch")
 
-from trhash import ClassificationResult, SemanticSegmentationResult, Vision  # noqa: E402
+from trhash import (  # noqa: E402
+    ClassificationResult,
+    DepthResult,
+    SemanticSegmentationResult,
+    Vision,
+)
 from trhash.exporter import export_model  # noqa: E402
 from trhash.metadata import ModelMetadata  # noqa: E402
 
@@ -75,6 +80,25 @@ def _semantic_backend():
         model=TinySemanticSegmenter(),
         task="semantic_segmentation",
         names=("light", "dark"),
+        validation={},
+    )
+
+
+class TinyDepthEstimator(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.detector_config = SimpleNamespace(image_size=16)
+        self.max_depth = 80.0
+
+    def forward(self, pixel_values):
+        return {"depth": pixel_values[:, :1].abs() + 1.0}
+
+
+def _depth_backend():
+    return SimpleNamespace(
+        model=TinyDepthEstimator(),
+        task="depth",
+        names=(),
         validation={},
     )
 
@@ -168,6 +192,32 @@ def test_semantic_export_and_runtime(tmp_path: Path, format: str):
     assert result.mask.size == (24, 12)
     assert result.labels == (0,)
     assert result.to_dict()["task"] == "semantic_segmentation"
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_depth_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _depth_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "depth"
+    assert metadata.output_names == ("depth",)
+    assert isinstance(result, DepthResult)
+    assert result.depth.size == (24, 12)
+    assert result.min_depth == pytest.approx(2.0)
+    assert result.max_depth == pytest.approx(2.0)
+    assert result.to_dict()["task"] == "depth"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):
