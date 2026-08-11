@@ -80,6 +80,11 @@ class ModelMetadata:
                 raise ValueError("classification bundles require softmax scores")
             if metadata.output_names != ("logits",):
                 raise ValueError("classification bundles require a logits output")
+        elif metadata.task == "semantic_segmentation":
+            if metadata.score_encoding != "per_pixel_softmax":
+                raise ValueError("semantic bundles require per-pixel softmax scores")
+            if metadata.output_names != ("logits",):
+                raise ValueError("semantic bundles require a logits output")
         return metadata
 
     @classmethod
@@ -109,6 +114,23 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
             reg_max=0,
             box_encoding="none",
             score_encoding="softmax",
+            recommended_confidence=0.0,
+            output_names=("logits",),
+            resize_mode="stretch",
+            task_options={},
+        )
+    if task == "semantic_segmentation":
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=int(backend.model.num_classes),
+            class_names=tuple(backend.names),
+            grid_sizes=(),
+            reg_max=0,
+            box_encoding="none",
+            score_encoding="per_pixel_softmax",
             recommended_confidence=0.0,
             output_names=("logits",),
             resize_mode="stretch",

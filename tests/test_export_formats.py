@@ -7,7 +7,7 @@ from PIL import Image
 
 torch = pytest.importorskip("torch")
 
-from trhash import ClassificationResult, Vision  # noqa: E402
+from trhash import ClassificationResult, SemanticSegmentationResult, Vision  # noqa: E402
 from trhash.exporter import export_model  # noqa: E402
 from trhash.metadata import ModelMetadata  # noqa: E402
 
@@ -55,6 +55,26 @@ def _classification_backend():
         model=TinyClassifier(),
         task="classification",
         names=("cat", "dog", "bird"),
+        validation={},
+    )
+
+
+class TinySemanticSegmenter(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.detector_config = SimpleNamespace(image_size=16)
+        self.num_classes = 2
+
+    def forward(self, pixel_values):
+        first = pixel_values[:, :1]
+        return {"logits": torch.cat((first, -first), dim=1)}
+
+
+def _semantic_backend():
+    return SimpleNamespace(
+        model=TinySemanticSegmenter(),
+        task="semantic_segmentation",
+        names=("light", "dark"),
         validation={},
     )
 
@@ -123,6 +143,31 @@ def test_classification_export_and_runtime(tmp_path: Path, format: str):
     assert result.names[result.top1] == "dog"
     assert sum(result.scores) == pytest.approx(1.0)
     assert result.to_dict()["task"] == "classification"
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_semantic_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _semantic_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "semantic_segmentation"
+    assert metadata.output_names == ("logits",)
+    assert isinstance(result, SemanticSegmentationResult)
+    assert result.mask.size == (24, 12)
+    assert result.labels == (0,)
+    assert result.to_dict()["task"] == "semantic_segmentation"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):

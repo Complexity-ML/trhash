@@ -14,10 +14,16 @@ class ExportVisionModel(torch.nn.Module):
         super().__init__()
         self.model = model
         self.task = task
-        self.output_names = ("logits",) if task == "classification" else ("predictions",)
+        self.output_names = (
+            ("logits",)
+            if task in {"classification", "semantic_segmentation"}
+            else ("predictions",)
+        )
 
     def forward(self, pixel_values):
         if self.task == "classification":
+            return self.model(pixel_values)["logits"]
+        if self.task == "semantic_segmentation":
             return self.model(pixel_values)["logits"]
         if self.task == "detection":
             return self.model.forward_predictions(pixel_values)

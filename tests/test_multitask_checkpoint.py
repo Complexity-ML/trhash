@@ -11,11 +11,11 @@ from complexity.generative.vision_tasks import (  # noqa: E402
     create_vision_model,
     save_vision_task_checkpoint,
 )
-from trhash import ClassificationResult, Vision  # noqa: E402
+from trhash import ClassificationResult, SemanticSegmentationResult, Vision  # noqa: E402
 
 
-def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
-    config = TRHashDetectorConfig(
+def _config() -> TRHashDetectorConfig:
+    return TRHashDetectorConfig(
         image_size=32,
         patch_size=8,
         vision_hidden_size=32,
@@ -27,6 +27,10 @@ def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
         vision_precision="fp32",
         num_classes=3,
     )
+
+
+def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
+    config = _config()
     checkpoint = save_vision_task_checkpoint(
         create_vision_model("classification", config, num_classes=3),
         tmp_path / "checkpoint",
@@ -44,3 +48,29 @@ def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
     assert isinstance(local_result, ClassificationResult)
     assert isinstance(portable_result, ClassificationResult)
     assert portable_result.top1 == local_result.top1
+
+
+def test_framework_semantic_checkpoint_to_portable_bundle(tmp_path: Path):
+    checkpoint = save_vision_task_checkpoint(
+        create_vision_model("semantic_segmentation", _config(), num_classes=3),
+        tmp_path / "semantic-checkpoint",
+        task="semantic_segmentation",
+        class_names=("road", "person", "sky"),
+    )
+
+    local = Vision(checkpoint, runtime="torch", device="cpu")
+    local_result = local.predict(Image.new("RGB", (40, 20), "white"))
+    bundle = local.export(
+        format="torchscript",
+        output=tmp_path / "semantic-bundle",
+    )
+    portable_result = Vision(bundle, device="cpu").predict(
+        Image.new("RGB", (40, 20), "white")
+    )
+
+    assert isinstance(local_result, SemanticSegmentationResult)
+    assert isinstance(portable_result, SemanticSegmentationResult)
+    assert portable_result.mask.size == (40, 20)
+    assert list(portable_result.mask.get_flattened_data()) == list(
+        local_result.mask.get_flattened_data()
+    )

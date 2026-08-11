@@ -8,6 +8,7 @@ from typing import Iterable, Optional
 
 from .classification import ClassificationResult
 from .result import Result
+from .segmentation import SemanticSegmentationResult
 from .video import VIDEO_EXTENSIONS, VideoWriter, is_video_source
 
 
@@ -73,7 +74,10 @@ def emit_predictions(
     stream: bool,
     task: str = "predict",
 ) -> None:
-    single_result = isinstance(result, (Result, ClassificationResult))
+    single_result = isinstance(
+        result,
+        (Result, ClassificationResult, SemanticSegmentationResult),
+    )
     if is_video_source(source):
         results = (result,) if single_result else result
         _emit_video(results, source=source, save=save, stream=stream, task=task)

@@ -15,6 +15,7 @@ from ..decoding import decode
 from ..metadata import ModelMetadata
 from ..preprocessing import preprocess, restore_boxes
 from ..result import Result
+from ..segmentation import SemanticSegmentationResult
 
 ImageSource = Union[str, Path, Image.Image]
 
@@ -69,6 +70,31 @@ class PortableDetectionBackend:
                         source=None if isinstance(source, Image.Image) else str(source),
                     )
                 )
+        elif self.metadata.task == "semantic_segmentation":
+            expected = (
+                len(images),
+                self.metadata.num_classes,
+                self.metadata.image_size,
+                self.metadata.image_size,
+            )
+            if predictions.shape != expected:
+                raise ValueError(
+                    "semantic output must have shape [batch, classes, height, width]"
+                )
+            labels = predictions.argmax(axis=1)
+            for source, image, label_map in zip(sources, images, labels):
+                mask = Image.fromarray(label_map.astype(np.int32), mode="I").resize(
+                    image.size,
+                    Image.Resampling.NEAREST,
+                )
+                results.append(
+                    SemanticSegmentationResult(
+                        image=image,
+                        mask=mask,
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
         else:
             for source, image, raw, (_, geometry) in zip(
                 sources,
@@ -115,7 +141,7 @@ def load_portable_backend(
 ):
     bundle = resolve_bundle(model, revision=revision, token=token)
     metadata = ModelMetadata.load(bundle)
-    if metadata.task not in {"detection", "classification"}:
+    if metadata.task not in {"detection", "classification", "semantic_segmentation"}:
         raise NotImplementedError(
             f"portable runtime is not implemented for task={metadata.task}"
         )

@@ -157,6 +157,10 @@ def result_from_payload(image: Image.Image, payload: Dict[str, Any]):
         from .classification import ClassificationResult
 
         return ClassificationResult.from_payload(image, payload)
+    if task == "semantic_segmentation":
+        from .segmentation import SemanticSegmentationResult
+
+        return SemanticSegmentationResult.from_payload(image, payload)
     if task == "detection":
         return Result.from_payload(image, payload)
     raise ValueError(f"unsupported prediction task: {task}")

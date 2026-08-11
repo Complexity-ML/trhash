@@ -62,12 +62,16 @@ class LocalBackend(PortableDetectionBackend):
     def _num_classes(self) -> int:
         if self.task == "classification":
             return int(self.model.head.out_features)
+        if self.task == "semantic_segmentation":
+            return int(self.model.num_classes)
         return int(self.model.config.num_classes)
 
     def _predict_raw(self, pixels):
         with self.torch.inference_mode():
             values = self.torch.from_numpy(pixels).to(self.device)
             if self.task == "classification":
+                return self.model(values)["logits"].cpu().numpy()
+            if self.task == "semantic_segmentation":
                 return self.model(values)["logits"].cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 

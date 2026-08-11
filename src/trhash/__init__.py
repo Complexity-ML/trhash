@@ -6,6 +6,7 @@ from .model import Vision
 from .benchmarking import BenchmarkEntry, BenchmarkReport
 from .classification import ClassificationResult
 from .result import Result
+from .segmentation import SemanticSegmentationResult
 from .validation import ValidationMetrics
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ __all__ = [
     "ByteTracker",
     "ClassificationResult",
     "Result",
+    "SemanticSegmentationResult",
     "ValidationMetrics",
     "Vision",
 ]
