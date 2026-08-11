@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Optional, Union
-
-from PIL import Image
 
 from .backends.remote import RemoteBackend
 from .result import Result
+from .sources import PredictionSource, chunks, expand_sources
 
-ImageSource = Union[str, Path, Image.Image]
+PredictionOutput = Union[Result, list[Result], Iterator[Result]]
 
 
 class Vision:
@@ -45,12 +45,30 @@ class Vision:
 
     def predict(
         self,
-        source: ImageSource,
+        source: PredictionSource,
         *,
         confidence: Optional[float] = None,
         iou: float = 0.45,
-    ) -> Result:
-        return self.backend.predict(source, confidence=confidence, iou=iou)
+        batch: int = 1,
+        stream: bool = False,
+    ) -> PredictionOutput:
+        sources, single = expand_sources(source)
+
+        def generate() -> Iterator[Result]:
+            predict_batch = getattr(self.backend, "predict_batch", None)
+            for group in chunks(sources, batch):
+                if predict_batch is not None:
+                    yield from predict_batch(group, confidence=confidence, iou=iou)
+                else:
+                    for item in group:
+                        yield self.backend.predict(item, confidence=confidence, iou=iou)
+
+        results = generate()
+        if stream:
+            return results
+        if single:
+            return next(results)
+        return list(results)
 
     __call__ = predict
 
@@ -61,6 +79,11 @@ class Vision:
         return train(**options)
 
     sft = train
+
+    def val(self, **options):
+        from .validation import validate
+
+        return validate(self, **options)
 
     def export(self, **options) -> Path:
         export = getattr(self.backend, "export", None)

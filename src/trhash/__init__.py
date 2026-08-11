@@ -2,6 +2,7 @@
 
 from .model import Vision
 from .result import Result
+from .validation import ValidationMetrics
 
-__all__ = ["Result", "Vision"]
-__version__ = "0.1.0.dev0"
+__all__ = ["Result", "ValidationMetrics", "Vision"]
+__version__ = "0.2.0.dev0"

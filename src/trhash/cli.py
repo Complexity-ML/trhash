@@ -11,7 +11,8 @@ from .commands import HANDLERS
 USAGE = """TR-Hash Vision
 
 Usage:
-  trhash predict model=MODEL source=IMAGE [confidence=0.25] [save=OUTPUT]
+  trhash predict model=MODEL source=IMAGE_OR_DIR [batch=16] [stream=true] [save=OUTPUT]
+  trhash val model=MODEL data=DATASET.yaml [batch=16] [confidence=0.001]
   trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
   trhash export model=MODEL [output=runs/export] [opset=18]
   trhash publish bundle=BUNDLE repo=ORG/MODEL [private=true]

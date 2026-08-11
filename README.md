@@ -22,6 +22,13 @@ model = Vision("AETHORIA-AI/TR-HASH-Vision-0.8M-VOC")
 result = model.predict("image.jpg", confidence=0.25)
 result.save("prediction.jpg")
 
+results = model.predict("images/", batch=16)
+for result in model.predict("images/", batch=16, stream=True):
+    print(result.to_dict())
+
+metrics = model.val(data="dataset.yaml", batch=16)
+print(metrics.map50, metrics.precision, metrics.recall)
+
 checkpoint = model.train(
     data="dataset.yaml",
     epochs=20,
@@ -40,6 +47,12 @@ The CLI follows the familiar `key=value` model workflow:
 
 ```bash
 trhash predict model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC source=image.jpg save=prediction.jpg
+
+trhash predict model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  source=images/ batch=16 stream=true save=runs/predict
+
+trhash val model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  data=dataset.yaml batch=16
 
 trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
   data=dataset.yaml epochs=20 batch=64 augmentation=strong device=cuda

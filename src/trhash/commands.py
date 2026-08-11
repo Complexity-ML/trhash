@@ -10,6 +10,7 @@ from typing import Dict
 from .arguments import optional_bool, reject_unknown, require
 from .model import Vision
 from .publishing import publish_bundle
+from .result import Result
 
 
 def vision(options: Dict[str, str]) -> Vision:
@@ -28,6 +29,8 @@ def predict(options: Dict[str, str]) -> None:
     source = require(options, "source")
     confidence = options.pop("confidence", options.pop("conf", None))
     iou = float(options.pop("iou", "0.45"))
+    batch = int(options.pop("batch", "1"))
+    stream = optional_bool(options, "stream", False)
     save = options.pop("save", None)
     model = vision(options)
     reject_unknown(options)
@@ -35,16 +38,55 @@ def predict(options: Dict[str, str]) -> None:
         source,
         confidence=float(confidence) if confidence is not None else None,
         iou=iou,
+        batch=batch,
+        stream=stream,
     )
-    payload = result.to_dict()
+    if isinstance(result, Result):
+        payload = result.to_dict()
+        if save is not None:
+            output = (
+                Path("runs/predict") / f"{Path(source).stem}.jpg"
+                if save.casefold() in {"1", "true", "yes"}
+                else Path(save)
+            )
+            payload["saved"] = str(result.save(output))
+        print(json.dumps(payload, indent=2))
+        return
+
+    output_directory = None
     if save is not None:
-        output = (
-            Path("runs/predict") / f"{Path(source).stem}.jpg"
+        output_directory = (
+            Path("runs/predict")
             if save.casefold() in {"1", "true", "yes"}
             else Path(save)
         )
-        payload["saved"] = str(result.save(output))
-    print(json.dumps(payload, indent=2))
+    payloads = []
+    for index, item in enumerate(result):
+        payload = item.to_dict()
+        if output_directory is not None:
+            name = Path(item.source).stem if item.source else f"prediction_{index:06d}"
+            payload["saved"] = str(item.save(output_directory / f"{name}.jpg"))
+        if stream:
+            print(json.dumps(payload))
+        else:
+            payloads.append(payload)
+    if not stream:
+        print(json.dumps(payloads, indent=2))
+
+
+def val(options: Dict[str, str]) -> None:
+    validation = {
+        "data": require(options, "data"),
+        "confidence": float(options.pop("confidence", options.pop("conf", "0.001"))),
+        "iou": float(options.pop("iou", "0.45")),
+        "match_iou": float(options.pop("match_iou", "0.50")),
+        "batch": int(options.pop("batch", "16")),
+    }
+    max_images = options.pop("max_images", None)
+    validation["max_images"] = int(max_images) if max_images is not None else None
+    model = vision(options)
+    reject_unknown(options)
+    print(json.dumps(model.val(**validation).to_dict(), indent=2))
 
 
 def train(options: Dict[str, str]) -> None:
@@ -116,6 +158,7 @@ def info(options: Dict[str, str]) -> None:
 
 HANDLERS = {
     "predict": predict,
+    "val": val,
     "train": train,
     "sft": train,
     "export": export,

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
+
+import numpy as np
 
 from PIL import Image
 
@@ -65,28 +67,47 @@ class OnnxBackend:
         confidence: Optional[float] = None,
         iou: float = 0.45,
     ) -> Result:
-        image = source.copy() if isinstance(source, Image.Image) else Image.open(source)
-        image = image.convert("RGB")
-        pixels, geometry = preprocess(image, self.metadata)
-        raw = self.session.run(("predictions",), {"pixel_values": pixels[None]})[0][0]
-        boxes, scores, labels = decode(
-            raw,
-            self.metadata,
-            confidence=(
-                float(confidence)
-                if confidence is not None
-                else self.metadata.recommended_confidence
-            ),
-            iou=iou,
+        return self.predict_batch((source,), confidence=confidence, iou=iou)[0]
+
+    def predict_batch(
+        self,
+        sources: Sequence[ImageSource],
+        *,
+        confidence: Optional[float] = None,
+        iou: float = 0.45,
+    ) -> list[Result]:
+        images = [
+            (source.copy() if isinstance(source, Image.Image) else Image.open(source)).convert("RGB")
+            for source in sources
+        ]
+        prepared = [preprocess(image, self.metadata) for image in images]
+        pixels = np.stack([item[0] for item in prepared])
+        predictions = self.session.run(("predictions",), {"pixel_values": pixels})[0]
+        threshold = (
+            float(confidence)
+            if confidence is not None
+            else self.metadata.recommended_confidence
         )
-        boxes = restore_boxes(boxes, self.metadata, geometry)
-        return Result(
-            image=image,
-            boxes=[tuple(float(value) for value in box) for box in boxes],
-            scores=[float(value) for value in scores],
-            labels=[int(value) for value in labels],
-            names=self.names,
-        )
+        results = []
+        for source, image, raw, (_, geometry) in zip(sources, images, predictions, prepared):
+            boxes, scores, labels = decode(
+                raw,
+                self.metadata,
+                confidence=threshold,
+                iou=iou,
+            )
+            boxes = restore_boxes(boxes, self.metadata, geometry)
+            results.append(
+                Result(
+                    image=image,
+                    boxes=[tuple(float(value) for value in box) for box in boxes],
+                    scores=[float(value) for value in scores],
+                    labels=[int(value) for value in labels],
+                    names=self.names,
+                    source=None if isinstance(source, Image.Image) else str(source),
+                )
+            )
+        return results
 
     def serve(self, **options) -> None:
         from ..server.runner import run_server

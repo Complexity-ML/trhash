@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from PIL import Image, ImageDraw
 
@@ -16,6 +16,7 @@ class Result:
     scores: List[float]
     labels: List[int]
     names: Sequence[str]
+    source: Optional[str] = None
 
     @classmethod
     def from_payload(cls, image: Image.Image, payload: Dict[str, Any]) -> "Result":
@@ -45,10 +46,13 @@ class Result:
                     "class_name": name,
                 }
             )
-        return {
+        payload = {
             "image": {"width": self.image.width, "height": self.image.height},
             "detections": detections,
         }
+        if self.source is not None:
+            payload["source"] = self.source
+        return payload
 
     def plot(self, width: int = 3) -> Image.Image:
         rendered = self.image.copy()

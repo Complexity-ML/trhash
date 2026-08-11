@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 from PIL import Image
 
@@ -57,29 +57,48 @@ class LocalBackend:
         confidence: Optional[float] = None,
         iou: float = 0.45,
     ) -> Result:
-        image = source.copy() if isinstance(source, Image.Image) else Image.open(source)
-        image = image.convert("RGB")
-        pixels, metadata = self.preprocess(image, self.model.config.image_size)
+        return self.predict_batch((source,), confidence=confidence, iou=iou)[0]
+
+    def predict_batch(
+        self,
+        sources: Sequence[ImageSource],
+        *,
+        confidence: Optional[float] = None,
+        iou: float = 0.45,
+    ) -> list[Result]:
+        images = [
+            (source.copy() if isinstance(source, Image.Image) else Image.open(source)).convert("RGB")
+            for source in sources
+        ]
+        prepared = [self.preprocess(image, self.model.config.image_size) for image in images]
         selected_confidence = float(
             confidence
             if confidence is not None
             else self.validation.get("best_confidence", 0.25)
         )
         with self.torch.inference_mode():
-            prediction = self.model.predict(
-                pixels.unsqueeze(0).to(self.device),
+            predictions = self.model.predict(
+                self.torch.stack([item[0] for item in prepared]).to(self.device),
                 confidence_threshold=selected_confidence,
                 iou_threshold=iou,
                 postprocess_on_cpu=self.device.type == "mps",
-            )[0]
-        boxes = self.restore_boxes(prediction["boxes"].cpu(), metadata)
-        return Result(
-            image=image,
-            boxes=[tuple(float(value) for value in box) for box in boxes],
-            scores=[float(value) for value in prediction["scores"].cpu()],
-            labels=[int(value) for value in prediction["labels"].cpu()],
-            names=self.names,
-        )
+            )
+        results = []
+        for source, image, prediction, (_, metadata) in zip(
+            sources, images, predictions, prepared
+        ):
+            boxes = self.restore_boxes(prediction["boxes"].cpu(), metadata)
+            results.append(
+                Result(
+                    image=image,
+                    boxes=[tuple(float(value) for value in box) for box in boxes],
+                    scores=[float(value) for value in prediction["scores"].cpu()],
+                    labels=[int(value) for value in prediction["labels"].cpu()],
+                    names=self.names,
+                    source=None if isinstance(source, Image.Image) else str(source),
+                )
+            )
+        return results
 
     def train(self, **options) -> Path:
         from ..training import FineTuner

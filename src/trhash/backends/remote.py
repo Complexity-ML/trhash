@@ -55,7 +55,9 @@ class RemoteBackend:
             files={"file": (filename, content, "application/octet-stream")},
         )
         response.raise_for_status()
-        return Result.from_payload(image, response.json())
+        result = Result.from_payload(image, response.json())
+        result.source = None if isinstance(source, Image.Image) else str(source)
+        return result
 
     def close(self) -> None:
         self.client.close()
