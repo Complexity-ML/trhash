@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from ..metadata import metadata_from_checkpoint
-from .common import parity_inputs, prepare_export
+from .common import parity_inputs, prepare_export, tensor_outputs
 from .onnx import export_onnx
 
 
@@ -119,7 +119,15 @@ def export_tensorrt(
         tolerance = 3e-2 if precision == "fp16" else 1e-4
         with torch.inference_mode():
             for values in parity_inputs(example, dynamic_batch=max_batch >= 2):
-                expected = detector(values).cpu().numpy()
-                actual = runtime._predict_raw(values.numpy())
-                np.testing.assert_allclose(actual, expected, atol=tolerance, rtol=tolerance)
+                expected = tensor_outputs(detector(values))
+                actual = tensor_outputs(runtime._predict_raw(values.numpy()))
+                if len(actual) != len(expected):
+                    raise AssertionError("TensorRT engine returned the wrong number of outputs")
+                for actual_array, expected_tensor in zip(actual, expected):
+                    np.testing.assert_allclose(
+                        actual_array,
+                        expected_tensor.detach().cpu().numpy(),
+                        atol=tolerance,
+                        rtol=tolerance,
+                    )
     return output_path

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from ..metadata import metadata_from_checkpoint
-from .common import parity_inputs, prepare_export
+from .common import parity_inputs, prepare_export, tensor_outputs
 
 
 def _verify_onnx(model_path: Path, reference, inputs) -> None:
@@ -22,9 +22,17 @@ def _verify_onnx(model_path: Path, reference, inputs) -> None:
     session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
     with torch.inference_mode():
         for values in inputs:
-            expected = reference(values).detach().cpu().numpy()
-            actual = session.run(reference.output_names, {"pixel_values": values.numpy()})[0]
-            np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-4)
+            expected = tensor_outputs(reference(values))
+            actual = session.run(reference.output_names, {"pixel_values": values.numpy()})
+            if len(actual) != len(expected):
+                raise AssertionError("ONNX model returned the wrong number of outputs")
+            for actual_array, expected_tensor in zip(actual, expected):
+                np.testing.assert_allclose(
+                    actual_array,
+                    expected_tensor.detach().cpu().numpy(),
+                    atol=1e-5,
+                    rtol=1e-4,
+                )
 
 
 def export_onnx(

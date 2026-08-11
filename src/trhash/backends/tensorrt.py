@@ -55,9 +55,10 @@ class TensorRTBackend(PortableDetectionBackend):
             if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT
         ]
         outputs = [name for name in names if name not in inputs]
-        if len(inputs) != 1 or len(outputs) != 1:
-            raise ValueError("TR-Hash TensorRT engines must expose one input and one output")
-        self.input_name, self.output_name = inputs[0], outputs[0]
+        if len(inputs) != 1 or set(outputs) != set(self.metadata.output_names):
+            raise ValueError("TensorRT graph inputs/outputs do not match bundle metadata")
+        self.input_name = inputs[0]
+        self.output_names = self.metadata.output_names
         self.names = self.metadata.class_names
         self.providers = [f"TensorRT:{trt.__version__}:{self.device}"]
 
@@ -74,7 +75,7 @@ class TensorRTBackend(PortableDetectionBackend):
         except KeyError as error:
             raise TypeError(f"unsupported TensorRT tensor dtype: {numpy_dtype}") from error
 
-    def _predict_raw(self, pixels: np.ndarray) -> np.ndarray:
+    def _predict_raw(self, pixels: np.ndarray):
         torch = self.torch
         with self._lock, torch.cuda.device(self.device), torch.inference_mode():
             input_tensor = torch.from_numpy(np.ascontiguousarray(pixels)).to(
@@ -83,23 +84,31 @@ class TensorRTBackend(PortableDetectionBackend):
             )
             if not self.context.set_input_shape(self.input_name, tuple(input_tensor.shape)):
                 raise ValueError(f"TensorRT rejected input shape {tuple(input_tensor.shape)}")
-            output_shape = tuple(self.context.get_tensor_shape(self.output_name))
-            if any(dimension < 0 for dimension in output_shape):
-                raise RuntimeError(f"TensorRT returned unresolved output shape {output_shape}")
-            output_tensor = torch.empty(
-                output_shape,
-                dtype=self._torch_dtype(self.output_name),
-                device=self.device,
-            )
             if not self.context.set_tensor_address(self.input_name, input_tensor.data_ptr()):
                 raise RuntimeError("TensorRT rejected the input tensor address")
-            if not self.context.set_tensor_address(self.output_name, output_tensor.data_ptr()):
-                raise RuntimeError("TensorRT rejected the output tensor address")
+            output_tensors = []
+            for output_name in self.output_names:
+                output_shape = tuple(self.context.get_tensor_shape(output_name))
+                if any(dimension < 0 for dimension in output_shape):
+                    raise RuntimeError(
+                        f"TensorRT returned unresolved output shape {output_shape}"
+                    )
+                output_tensor = torch.empty(
+                    output_shape,
+                    dtype=self._torch_dtype(output_name),
+                    device=self.device,
+                )
+                if not self.context.set_tensor_address(
+                    output_name, output_tensor.data_ptr()
+                ):
+                    raise RuntimeError("TensorRT rejected an output tensor address")
+                output_tensors.append(output_tensor)
             stream = torch.cuda.current_stream(self.device)
             if not self.context.execute_async_v3(stream.cuda_stream):
                 raise RuntimeError("TensorRT inference execution failed")
             stream.synchronize()
-            return output_tensor.cpu().numpy()
+            outputs = tuple(output.cpu().numpy() for output in output_tensors)
+            return outputs[0] if len(outputs) == 1 else outputs
 
     def serve(self, **options) -> None:
         from ..server.runner import run_server

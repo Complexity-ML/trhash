@@ -14,6 +14,7 @@ from complexity.generative.vision_tasks import (  # noqa: E402
 from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
+    InstanceSegmentationResult,
     PoseResult,
     SemanticSegmentationResult,
     Vision,
@@ -124,3 +125,31 @@ def test_framework_pose_checkpoint_to_portable_bundle(tmp_path: Path):
     assert isinstance(portable_result, PoseResult)
     assert portable_result.names == ("nose", "left_eye", "right_eye")
     assert portable_result.keypoints == pytest.approx(local_result.keypoints, abs=1e-5)
+
+
+def test_framework_instance_checkpoint_to_portable_bundle(tmp_path: Path):
+    checkpoint = save_vision_task_checkpoint(
+        create_vision_model("instance_segmentation", _config(), num_prototypes=4),
+        tmp_path / "instance-checkpoint",
+        task="instance_segmentation",
+        class_names=("cat", "dog", "bird"),
+    )
+
+    local = Vision(checkpoint, runtime="torch", device="cpu")
+    local_result = local.predict(
+        Image.new("RGB", (40, 20), "white"),
+        confidence=0.0,
+    )
+    bundle = local.export(format="torchscript", output=tmp_path / "instance-bundle")
+    portable_result = Vision(bundle, device="cpu").predict(
+        Image.new("RGB", (40, 20), "white"),
+        confidence=0.0,
+    )
+
+    assert isinstance(local_result, InstanceSegmentationResult)
+    assert isinstance(portable_result, InstanceSegmentationResult)
+    assert portable_result.labels == local_result.labels
+    assert portable_result.boxes == pytest.approx(local_result.boxes, abs=1e-5)
+    assert len(portable_result.masks) == len(local_result.masks)
+    for actual, expected in zip(portable_result.masks, local_result.masks):
+        assert actual.tobytes() == expected.tobytes()

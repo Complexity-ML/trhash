@@ -47,9 +47,12 @@ class TorchScriptBackend(PortableDetectionBackend):
         self.names = self.metadata.class_names
         self.providers = [f"TorchScript:{self.device.type}"]
 
-    def _predict_raw(self, pixels: np.ndarray) -> np.ndarray:
+    def _predict_raw(self, pixels: np.ndarray):
         with self.torch.inference_mode():
-            return self.model(self.torch.from_numpy(pixels).to(self.device)).cpu().numpy()
+            outputs = self.model(self.torch.from_numpy(pixels).to(self.device))
+            if isinstance(outputs, (tuple, list)):
+                return tuple(output.cpu().numpy() for output in outputs)
+            return outputs.cpu().numpy()
 
     def serve(self, **options) -> None:
         from ..server.runner import run_server

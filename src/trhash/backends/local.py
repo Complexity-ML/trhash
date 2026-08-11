@@ -81,6 +81,12 @@ class LocalBackend(PortableDetectionBackend):
                 return self.model(values)["depth"].cpu().numpy()
             if self.task == "pose":
                 return self.model(values)["heatmaps"].cpu().numpy()
+            if self.task == "instance_segmentation":
+                outputs = self.model.forward_instance(values)
+                return tuple(
+                    outputs[name].cpu().numpy()
+                    for name in ("raw", "mask_coefficients", "prototypes")
+                )
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:

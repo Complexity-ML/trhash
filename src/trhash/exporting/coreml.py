@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from ..metadata import metadata_from_checkpoint
-from .common import parity_inputs, prepare_export
+from .common import parity_inputs, prepare_export, tensor_outputs
 
 
 def export_coreml(
@@ -43,11 +43,19 @@ def export_coreml(
         tolerance = 3e-2 if precision == "fp16" else 1e-4
         spec = converted.get_spec()
         input_name = spec.description.input[0].name
-        output_name = spec.description.output[0].name
+        output_names = tuple(output.name for output in spec.description.output)
+        if len(output_names) != len(detector.output_names):
+            raise AssertionError("CoreML model returned the wrong number of outputs")
         with torch.inference_mode():
             for values in parity_inputs(example, dynamic_batch=False):
-                expected = detector(values).cpu().numpy()
-                actual = converted.predict({input_name: values.numpy()})[output_name]
-                np.testing.assert_allclose(actual, expected, atol=tolerance, rtol=tolerance)
+                expected = tensor_outputs(detector(values))
+                prediction = converted.predict({input_name: values.numpy()})
+                for output_name, expected_tensor in zip(output_names, expected):
+                    np.testing.assert_allclose(
+                        prediction[output_name],
+                        expected_tensor.detach().cpu().numpy(),
+                        atol=tolerance,
+                        rtol=tolerance,
+                    )
     metadata_from_checkpoint(backend, model_file=model_path.name).save(output_path)
     return output_path

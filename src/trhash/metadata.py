@@ -75,6 +75,20 @@ class ModelMetadata:
                 raise ValueError("unsupported box encoding")
             if metadata.score_encoding != "quality_class_sigmoid":
                 raise ValueError("unsupported score encoding")
+            if metadata.task == "detection" and metadata.output_names != (
+                "predictions",
+            ):
+                raise ValueError("detection bundles require a predictions output")
+            if metadata.task == "instance_segmentation":
+                expected_outputs = (
+                    "predictions",
+                    "mask_coefficients",
+                    "prototypes",
+                )
+                if metadata.output_names != expected_outputs:
+                    raise ValueError("instance bundles require mask graph outputs")
+                if int(metadata.task_options.get("num_prototypes", 0)) <= 0:
+                    raise ValueError("instance bundles require num_prototypes")
         elif metadata.task == "classification":
             if metadata.score_encoding != "softmax":
                 raise ValueError("classification bundles require softmax scores")
@@ -184,6 +198,28 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
             output_names=("heatmaps",),
             resize_mode="stretch",
             task_options={"num_keypoints": num_keypoints},
+        )
+    if task == "instance_segmentation":
+        return ModelMetadata(
+            format_version=4,
+            task=task,
+            model_file=model_file,
+            image_size=config.image_size,
+            num_classes=config.num_classes,
+            class_names=tuple(backend.names),
+            grid_sizes=tuple(config.grid_sizes),
+            reg_max=config.reg_max,
+            box_encoding="stride_ltrb_dfl",
+            score_encoding="quality_class_sigmoid",
+            recommended_confidence=float(
+                backend.validation.get("best_confidence", 0.25)
+            ),
+            output_names=("predictions", "mask_coefficients", "prototypes"),
+            resize_mode="letterbox",
+            task_options={
+                "num_prototypes": int(backend.model.num_prototypes),
+                "mask_threshold": 0.5,
+            },
         )
     if task != "detection":
         raise NotImplementedError(f"portable export is not implemented for task={task}")

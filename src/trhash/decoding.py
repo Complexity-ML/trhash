@@ -38,7 +38,8 @@ def decode(
     confidence: float,
     iou: float,
     max_detections: int = 300,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return_indices: bool = False,
+):
     bins = metadata.reg_max + 1 if metadata.reg_max else 1
     regression_width = 4 * bins
     if raw.ndim != 2 or raw.shape[1] != regression_width + metadata.num_classes:
@@ -71,4 +72,7 @@ def decode(
     selected = np.flatnonzero(scores >= confidence)
     boxes, scores, labels = boxes[selected], scores[selected], labels[selected]
     keep = class_aware_nms(boxes, scores, labels, iou, max_detections)
-    return boxes[keep], scores[keep], labels[keep]
+    result = boxes[keep], scores[keep], labels[keep]
+    if return_indices:
+        return (*result, selected[keep])
+    return result

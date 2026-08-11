@@ -9,6 +9,7 @@ from typing import Optional, Union
 from .backends.remote import RemoteBackend
 from .classification import ClassificationResult
 from .depth import DepthResult
+from .instance_segmentation import InstanceSegmentationResult
 from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
@@ -25,6 +26,7 @@ VisionResult = Union[
     ClassificationResult,
     SemanticSegmentationResult,
     DepthResult,
+    InstanceSegmentationResult,
     PoseResult,
 ]
 PredictionOutput = Union[VisionResult, list[VisionResult], Iterator[VisionResult]]

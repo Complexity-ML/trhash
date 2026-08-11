@@ -169,6 +169,10 @@ def result_from_payload(image: Image.Image, payload: Dict[str, Any]):
         from .pose import PoseResult
 
         return PoseResult.from_payload(image, payload)
+    if task == "instance_segmentation":
+        from .instance_segmentation import InstanceSegmentationResult
+
+        return InstanceSegmentationResult.from_payload(image, payload)
     if task == "detection":
         return Result.from_payload(image, payload)
     raise ValueError(f"unsupported prediction task: {task}")

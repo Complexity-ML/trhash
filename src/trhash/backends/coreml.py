@@ -52,12 +52,16 @@ class CoreMLBackend(PortableDetectionBackend):
         )
         spec = self.model.get_spec()
         self.input_name = spec.description.input[0].name
-        self.output_name = spec.description.output[0].name
+        self.output_names = tuple(output.name for output in spec.description.output)
+        if len(self.output_names) != len(self.metadata.output_names):
+            raise ValueError("CoreML graph outputs do not match bundle metadata")
         self.names = self.metadata.class_names
         self.providers = [f"CoreML:{self.compute_units.name}"]
 
-    def _predict_raw(self, pixels: np.ndarray) -> np.ndarray:
-        return self.model.predict({self.input_name: pixels})[self.output_name]
+    def _predict_raw(self, pixels: np.ndarray):
+        prediction = self.model.predict({self.input_name: pixels})
+        outputs = tuple(prediction[name] for name in self.output_names)
+        return outputs[0] if len(outputs) == 1 else outputs
 
     def predict_batch(self, sources: Sequence, **options):
         results = []

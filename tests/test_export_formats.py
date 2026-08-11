@@ -10,6 +10,7 @@ torch = pytest.importorskip("torch")
 from trhash import (  # noqa: E402
     ClassificationResult,
     DepthResult,
+    InstanceSegmentationResult,
     PoseResult,
     SemanticSegmentationResult,
     Vision,
@@ -122,6 +123,45 @@ def _pose_backend():
         task="pose",
         names=("nose", "tail"),
         validation={},
+    )
+
+
+class TinyInstanceSegmenter(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.config = SimpleNamespace(
+            image_size=16,
+            num_classes=2,
+            grid_sizes=(1,),
+            reg_max=0,
+        )
+        self.num_prototypes = 2
+        self.register_buffer(
+            "raw",
+            torch.tensor([[[0.0, 0.0, 0.0, 0.0, 4.0, -4.0]]]),
+        )
+        self.register_buffer("coefficients", torch.tensor([[[5.0, -5.0]]]))
+        self.register_buffer(
+            "prototypes",
+            torch.stack((torch.ones(4, 4), -torch.ones(4, 4)))[None],
+        )
+
+    def forward_instance(self, pixel_values):
+        batch = pixel_values.shape[0]
+        adjustment = pixel_values.mean(dim=(1, 2, 3), keepdim=True)
+        return {
+            "raw": self.raw.expand(batch, -1, -1) + adjustment.reshape(batch, 1, 1) * 0.01,
+            "mask_coefficients": self.coefficients.expand(batch, -1, -1),
+            "prototypes": self.prototypes.expand(batch, -1, -1, -1),
+        }
+
+
+def _instance_backend():
+    return SimpleNamespace(
+        model=TinyInstanceSegmenter(),
+        task="instance_segmentation",
+        names=("cat", "dog"),
+        validation={"best_confidence": 0.25},
     )
 
 
@@ -267,6 +307,37 @@ def test_pose_export_and_runtime(tmp_path: Path, format: str):
     assert len(result.keypoints) == 2
     assert all(0.0 <= x <= 24.0 and 0.0 <= y <= 12.0 for x, y, _ in result.keypoints)
     assert result.to_dict()["task"] == "pose"
+
+
+@pytest.mark.parametrize("format", ("onnx", "torchscript", "coreml"))
+def test_instance_export_and_runtime(tmp_path: Path, format: str):
+    if format == "onnx":
+        pytest.importorskip("onnx")
+        pytest.importorskip("onnxruntime")
+    if format == "coreml":
+        pytest.importorskip("coremltools")
+    bundle = export_model(
+        _instance_backend(),
+        format=format,
+        output=tmp_path / format,
+        **({"precision": "fp32"} if format == "coreml" else {}),
+    )
+
+    metadata = ModelMetadata.load(bundle)
+    result = Vision(bundle).predict(Image.new("RGB", (24, 12), "white"))
+
+    assert metadata.task == "instance_segmentation"
+    assert metadata.output_names == (
+        "predictions",
+        "mask_coefficients",
+        "prototypes",
+    )
+    assert metadata.task_options["num_prototypes"] == 2
+    assert isinstance(result, InstanceSegmentationResult)
+    assert result.labels == [0]
+    assert result.masks[0].size == (24, 12)
+    assert result.masks[0].getextrema() == (255, 255)
+    assert result.to_dict()["task"] == "instance_segmentation"
 
 
 def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):

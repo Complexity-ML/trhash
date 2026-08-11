@@ -13,6 +13,8 @@ from ..bundle import resolve_bundle
 from ..classification import ClassificationResult
 from ..decoding import decode
 from ..depth import DepthResult
+from ..instance_segmentation import InstanceSegmentationResult
+from ..mask_decoding import decode_instance_masks
 from ..metadata import ModelMetadata
 from ..pose import PoseResult
 from ..preprocessing import preprocess, restore_boxes
@@ -55,7 +57,65 @@ class PortableDetectionBackend:
             else self.metadata.recommended_confidence
         )
         results = []
-        if self.metadata.task == "classification":
+        if self.metadata.task == "instance_segmentation":
+            if not isinstance(predictions, (tuple, list)) or len(predictions) != 3:
+                raise ValueError("instance runtime must return three graph outputs")
+            raw_batch, coefficients_batch, prototypes_batch = predictions
+            expected_cells = sum(grid * grid for grid in self.metadata.grid_sizes)
+            num_prototypes = int(self.metadata.task_options["num_prototypes"])
+            if raw_batch.shape[0] != len(images):
+                raise ValueError("instance predictions have the wrong batch size")
+            if coefficients_batch.shape != (
+                len(images),
+                expected_cells,
+                num_prototypes,
+            ):
+                raise ValueError("instance mask coefficients have an invalid shape")
+            if (
+                prototypes_batch.ndim != 4
+                or prototypes_batch.shape[:2] != (len(images), num_prototypes)
+            ):
+                raise ValueError("instance prototypes have an invalid shape")
+            mask_threshold = float(
+                self.metadata.task_options.get("mask_threshold", 0.5)
+            )
+            for source, image, raw, coefficients, prototypes, (_, geometry) in zip(
+                sources,
+                images,
+                raw_batch,
+                coefficients_batch,
+                prototypes_batch,
+                prepared,
+            ):
+                boxes, scores, labels, indices = decode(
+                    raw,
+                    self.metadata,
+                    confidence=threshold,
+                    iou=iou,
+                    return_indices=True,
+                )
+                masks = decode_instance_masks(
+                    coefficients,
+                    prototypes,
+                    indices,
+                    boxes,
+                    geometry,
+                    image_size=self.metadata.image_size,
+                    threshold=mask_threshold,
+                )
+                boxes = restore_boxes(boxes, self.metadata, geometry)
+                results.append(
+                    InstanceSegmentationResult(
+                        image=image,
+                        boxes=[tuple(float(value) for value in box) for box in boxes],
+                        masks=masks,
+                        scores=[float(value) for value in scores],
+                        labels=[int(value) for value in labels],
+                        names=self.names,
+                        source=None if isinstance(source, Image.Image) else str(source),
+                    )
+                )
+        elif self.metadata.task == "classification":
             if predictions.ndim != 2 or predictions.shape[1] != self.metadata.num_classes:
                 raise ValueError("classification output must have shape [batch, classes]")
             shifted = predictions - predictions.max(axis=1, keepdims=True)
@@ -202,6 +262,7 @@ def load_portable_backend(
         "semantic_segmentation",
         "depth",
         "pose",
+        "instance_segmentation",
     }:
         raise NotImplementedError(
             f"portable runtime is not implemented for task={metadata.task}"

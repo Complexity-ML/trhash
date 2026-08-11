@@ -6,6 +6,7 @@ from .model import Vision
 from .benchmarking import BenchmarkEntry, BenchmarkReport
 from .classification import ClassificationResult
 from .depth import DepthResult
+from .instance_segmentation import InstanceSegmentationResult
 from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
@@ -20,6 +21,7 @@ __all__ = [
     "ByteTracker",
     "ClassificationResult",
     "DepthResult",
+    "InstanceSegmentationResult",
     "PoseResult",
     "Result",
     "SemanticSegmentationResult",

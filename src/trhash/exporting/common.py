@@ -9,6 +9,10 @@ from typing import Union
 import torch
 
 
+def tensor_outputs(value):
+    return tuple(value) if isinstance(value, (tuple, list)) else (value,)
+
+
 class ExportVisionModel(torch.nn.Module):
     def __init__(self, model, task: str):
         super().__init__()
@@ -19,6 +23,11 @@ class ExportVisionModel(torch.nn.Module):
             "semantic_segmentation": ("logits",),
             "depth": ("depth",),
             "pose": ("heatmaps",),
+            "instance_segmentation": (
+                "predictions",
+                "mask_coefficients",
+                "prototypes",
+            ),
             "detection": ("predictions",),
         }.get(task, ("predictions",))
 
@@ -31,6 +40,13 @@ class ExportVisionModel(torch.nn.Module):
             return self.model(pixel_values)["depth"]
         if self.task == "pose":
             return self.model(pixel_values)["heatmaps"]
+        if self.task == "instance_segmentation":
+            outputs = self.model.forward_instance(pixel_values)
+            return (
+                outputs["raw"],
+                outputs["mask_coefficients"],
+                outputs["prototypes"],
+            )
         if self.task == "detection":
             return self.model.forward_predictions(pixel_values)
         raise NotImplementedError(f"portable export is not implemented for task={self.task}")
@@ -61,6 +77,14 @@ def parity_inputs(example: torch.Tensor, *, dynamic_batch: bool = True):
 def assert_parity(reference, candidate, inputs, *, atol: float, rtol: float) -> None:
     with torch.inference_mode():
         for values in inputs:
-            expected = reference(values).detach().cpu()
-            actual = candidate(values).detach().cpu()
-            torch.testing.assert_close(actual, expected, atol=atol, rtol=rtol)
+            expected = tensor_outputs(reference(values))
+            actual = tensor_outputs(candidate(values))
+            if len(actual) != len(expected):
+                raise AssertionError("exported model returned the wrong number of outputs")
+            for actual_tensor, expected_tensor in zip(actual, expected):
+                torch.testing.assert_close(
+                    actual_tensor.detach().cpu(),
+                    expected_tensor.detach().cpu(),
+                    atol=atol,
+                    rtol=rtol,
+                )
