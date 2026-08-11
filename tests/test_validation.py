@@ -22,6 +22,21 @@ class PerfectBackend:
         ]
 
 
+class OutOfRangeBackend:
+    def predict_batch(self, sources, **_options):
+        return [
+            Result(
+                image=Image.open(source).convert("RGB"),
+                boxes=[(25.0, 25.0, 75.0, 75.0)],
+                scores=[0.9],
+                labels=[1],
+                names=("0", "unexpected"),
+                source=str(source),
+            )
+            for source in sources
+        ]
+
+
 def _validation_dataset(root: Path) -> Path:
     (root / "images" / "train").mkdir(parents=True)
     (root / "labels" / "train").mkdir(parents=True)
@@ -51,3 +66,15 @@ def test_val_reports_perfect_map_precision_and_recall(tmp_path: Path):
     assert metrics.images == 2
     assert metrics.targets == 2
     assert metrics.per_class_ap50 == {"object": 1.0}
+
+
+def test_val_ignores_out_of_range_remote_labels_without_key_error(tmp_path: Path):
+    model = Vision.__new__(Vision)
+    model.backend = OutOfRangeBackend()
+
+    metrics = model.val(data=_validation_dataset(tmp_path), batch=2)
+
+    assert metrics.map50 == 0.0
+    assert metrics.precision == 0.0
+    assert metrics.recall == 0.0
+    assert metrics.predictions == 2

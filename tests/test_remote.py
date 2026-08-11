@@ -33,3 +33,20 @@ def test_remote_backend_needs_no_local_runtime(tmp_path):
     assert result.labels == [3]
     assert result.to_dict()["detections"][0]["class_name"] == "dog"
     vision.close()
+
+
+def test_remote_backend_reads_model_class_names():
+    vision = Vision("org/model", endpoint="https://vision.test")
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/model"
+        return httpx.Response(
+            200,
+            json={"metadata": {"class_names": ["cat", "dog"]}},
+        )
+
+    vision.backend.client.close()
+    vision.backend.client = httpx.Client(transport=httpx.MockTransport(respond))
+
+    assert vision.backend.class_names() == ("cat", "dog")
+    vision.close()

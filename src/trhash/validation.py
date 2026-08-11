@@ -78,8 +78,9 @@ def _match(
     records: dict[int, list[tuple[float, bool]]],
     *,
     match_iou: float,
+    num_classes: int,
 ) -> None:
-    for class_id in range(len(result.names)):
+    for class_id in range(num_classes):
         class_targets = [box for box, label in targets if label == class_id]
         used = [False] * len(class_targets)
         predictions = sorted(
@@ -149,6 +150,10 @@ def validate(
     if dataset.validation_images is None or dataset.validation_labels is None:
         raise ValueError("dataset YAML must define a validation split with 'val'")
     backend_names = tuple(str(name) for name in getattr(model.backend, "names", ()))
+    if not backend_names:
+        class_names = getattr(model.backend, "class_names", None)
+        if class_names is not None:
+            backend_names = tuple(str(name) for name in class_names())
     if backend_names and tuple(name.casefold() for name in backend_names) != tuple(
         name.casefold() for name in dataset.names
     ):
@@ -180,7 +185,13 @@ def validate(
         for _, class_id in targets:
             target_counts[class_id] += 1
         prediction_count += len(result.boxes)
-        _match(result, targets, records, match_iou=match_iou)
+        _match(
+            result,
+            targets,
+            records,
+            match_iou=match_iou,
+            num_classes=len(dataset.names),
+        )
 
     per_class = {
         dataset.names[class_id]: _average_precision(records[class_id], target_counts[class_id])

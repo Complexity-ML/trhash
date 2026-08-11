@@ -59,5 +59,15 @@ class RemoteBackend:
         result.source = None if isinstance(source, Image.Image) else str(source)
         return result
 
+    def class_names(self) -> tuple[str, ...]:
+        response = self.client.get(f"{self.endpoint}/v1/model")
+        response.raise_for_status()
+        payload = response.json()
+        metadata = payload.get("metadata", {})
+        names = metadata.get("class_names", payload.get("class_names"))
+        if not isinstance(names, (list, tuple)) or not names:
+            raise ValueError("remote endpoint does not expose model class_names")
+        return tuple(str(name) for name in names)
+
     def close(self) -> None:
         self.client.close()
