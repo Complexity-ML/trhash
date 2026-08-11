@@ -29,6 +29,7 @@ class FineTuner:
         expert_lr_multiplier: float = 1.5,
         augmentation: str = "strong",
         seed: int = 42,
+        resume: bool = False,
         extra_args: Sequence[str] = (),
     ) -> Path:
         if augmentation not in {"light", "strong"}:
@@ -45,24 +46,43 @@ class FineTuner:
         output_path.mkdir(parents=True, exist_ok=True)
         class_names_path = output_path / "class_names.json"
         class_names_path.write_text(json.dumps(list(dataset.names), indent=2) + "\n")
-        source_classes = {name.casefold(): index for index, name in enumerate(self.backend.names)}
-        class_mapping = {
-            target: source_classes[name.casefold()]
-            for target, name in enumerate(dataset.names)
-            if name.casefold() in source_classes
-        }
-        class_map_path = output_path / "class_map.json"
-        class_map_path.write_text(json.dumps(class_mapping, indent=2) + "\n")
+
+        initialization = []
+        if resume:
+            training_state = self.backend.checkpoint / "training_state.pt"
+            if not training_state.is_file():
+                raise ValueError(
+                    f"{self.backend.checkpoint} is weights-only and cannot be resumed exactly"
+                )
+            if tuple(self.backend.names) != tuple(dataset.names):
+                raise ValueError("resume requires dataset class names in the original order")
+            initialization.extend(("--resume", str(self.backend.checkpoint)))
+        else:
+            source_classes = {
+                name.casefold(): index for index, name in enumerate(self.backend.names)
+            }
+            class_mapping = {
+                target: source_classes[name.casefold()]
+                for target, name in enumerate(dataset.names)
+                if name.casefold() in source_classes
+            }
+            class_map_path = output_path / "class_map.json"
+            class_map_path.write_text(json.dumps(class_mapping, indent=2) + "\n")
+            initialization.extend(
+                (
+                    "--detector-checkpoint",
+                    str(self.backend.checkpoint),
+                    "--class-map",
+                    str(class_map_path),
+                )
+            )
 
         command = [
             sys.executable,
             "-u",
             "-m",
             "complexity.generative.detection.training",
-            "--detector-checkpoint",
-            str(self.backend.checkpoint),
-            "--class-map",
-            str(class_map_path),
+            *initialization,
             "--yolo-images",
             str(dataset.train_images),
             "--yolo-labels",

@@ -38,6 +38,9 @@ class LocalBackend:
         self.device = resolve_device(self.torch, device)
         self.model = load_checkpoint(self.checkpoint, device=self.device)
         names_path = self.checkpoint / "class_names.json"
+        if not names_path.is_file():
+            # Interrupted fine-tunes leave shared metadata at the run root.
+            names_path = self.checkpoint.parent / "class_names.json"
         self.names = (
             tuple(str(name) for name in json.loads(names_path.read_text()))
             if names_path.exists()

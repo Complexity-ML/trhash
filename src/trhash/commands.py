@@ -100,6 +100,7 @@ def train(options: Dict[str, str]) -> None:
         "expert_lr_multiplier": float(options.pop("expert_lr_multiplier", "1.5")),
         "augmentation": options.pop("augmentation", "strong"),
         "seed": int(options.pop("seed", "42")),
+        "resume": optional_bool(options, "resume", False),
     }
     training_device = options.get("device")
     model = vision(options)

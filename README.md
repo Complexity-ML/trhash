@@ -35,11 +35,25 @@ checkpoint = model.train(
     batch=64,
     device="cuda",
 )
+
+# Resume the exact optimizer/scheduler/data position from an interrupted run.
+checkpoint = Vision("runs/train/step_001000", runtime="torch").train(
+    data="dataset.yaml",
+    output="runs/train",
+    epochs=20,  # total target; it must match the original run
+    batch=64,
+    device="cuda",
+    resume=True,
+)
 ```
 
 `train()` transfers a compatible v0.4 detector: vision tower, feature pyramid,
 decoupled head, LTRB/DFL regression, and quality-class rows. Class rows with
 the same name are copied automatically; new classes are initialized and trained.
+`resume=True` is intentionally strict: it requires a new-format checkpoint
+containing `training_state.pt`, the original dataset/classes and unchanged
+training options. Older weights-only checkpoints remain valid transfer sources,
+but cannot reconstruct a lost optimizer or scheduler state.
 
 ## CLI
 
@@ -56,6 +70,9 @@ trhash val model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
 
 trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
   data=dataset.yaml epochs=20 batch=64 augmentation=strong device=cuda
+
+trhash train model=runs/train/step_001000 runtime=torch \
+  data=dataset.yaml output=runs/train epochs=20 batch=64 device=cuda resume=true
 
 trhash serve model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC host=0.0.0.0 port=8000
 ```
