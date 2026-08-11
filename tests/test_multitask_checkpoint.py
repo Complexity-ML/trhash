@@ -20,6 +20,7 @@ from trhash import (  # noqa: E402
     SemanticSegmentationResult,
     Vision,
 )
+from trhash.metadata import CURRENT_FORMAT_VERSION, ModelMetadata  # noqa: E402
 
 
 def _config() -> TRHashDetectorConfig:
@@ -37,6 +38,11 @@ def _config() -> TRHashDetectorConfig:
     )
 
 
+def _assert_v5_bundle(bundle: Path) -> None:
+    assert CURRENT_FORMAT_VERSION == 5
+    assert ModelMetadata.load(bundle).format_version == CURRENT_FORMAT_VERSION
+
+
 def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
     config = _config()
     checkpoint = save_vision_task_checkpoint(
@@ -49,6 +55,7 @@ def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
     local = Vision(checkpoint, runtime="torch", device="cpu")
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "bundle")
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white")
     )
@@ -72,6 +79,7 @@ def test_framework_semantic_checkpoint_to_portable_bundle(tmp_path: Path):
         format="torchscript",
         output=tmp_path / "semantic-bundle",
     )
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white")
     )
@@ -94,6 +102,7 @@ def test_framework_depth_checkpoint_to_portable_bundle(tmp_path: Path):
     local = Vision(checkpoint, runtime="torch", device="cpu")
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "depth-bundle")
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white")
     )
@@ -118,6 +127,7 @@ def test_framework_pose_checkpoint_to_portable_bundle(tmp_path: Path):
     local = Vision(checkpoint, runtime="torch", device="cpu")
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "pose-bundle")
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white")
     )
@@ -142,6 +152,7 @@ def test_framework_instance_checkpoint_to_portable_bundle(tmp_path: Path):
         confidence=0.0,
     )
     bundle = local.export(format="torchscript", output=tmp_path / "instance-bundle")
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white"),
         confidence=0.0,
@@ -170,6 +181,7 @@ def test_framework_obb_checkpoint_to_portable_bundle(tmp_path: Path):
         confidence=0.0,
     )
     bundle = local.export(format="torchscript", output=tmp_path / "obb-bundle")
+    _assert_v5_bundle(bundle)
     portable_result = Vision(bundle, device="cpu").predict(
         Image.new("RGB", (40, 20), "white"),
         confidence=0.0,

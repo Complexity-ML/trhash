@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Tuple, Union
 
+CURRENT_FORMAT_VERSION = 5
+
 SUPPORTED_TASKS = {
     "detection",
     "instance_segmentation",
@@ -54,7 +56,10 @@ class ModelMetadata:
         ):
             values[field_name] = tuple(values[field_name])
         metadata = cls(**values)
-        if metadata.format_version != 5 or metadata.task not in SUPPORTED_TASKS:
+        if (
+            metadata.format_version != CURRENT_FORMAT_VERSION
+            or metadata.task not in SUPPORTED_TASKS
+        ):
             raise ValueError("unsupported TR-Hash model bundle")
         if Path(metadata.model_file).name != metadata.model_file:
             raise ValueError("model_file must be a filename inside the bundle")
@@ -137,7 +142,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
     )
     if task == "classification":
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -154,7 +159,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         )
     if task == "semantic_segmentation":
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -171,7 +176,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         )
     if task == "depth":
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -189,7 +194,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
     if task == "pose":
         num_keypoints = int(backend.model.num_keypoints)
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -206,7 +211,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         )
     if task == "instance_segmentation":
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -228,7 +233,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         )
     if task == "obb":
         return ModelMetadata(
-            format_version=5,
+            format_version=CURRENT_FORMAT_VERSION,
             task=task,
             model_file=model_file,
             image_size=config.image_size,
@@ -248,7 +253,7 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
     if task != "detection":
         raise NotImplementedError(f"portable export is not implemented for task={task}")
     return ModelMetadata(
-        format_version=5,
+        format_version=CURRENT_FORMAT_VERSION,
         task="detection",
         model_file=model_file,
         image_size=config.image_size,
