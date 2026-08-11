@@ -5,6 +5,10 @@ from __future__ import annotations
 
 def architecture_arguments(config) -> list[str]:
     arguments = [
+        "--architecture-version",
+        str(config.architecture_version),
+        "--neck-mode",
+        str(config.neck_mode),
         "--image-size",
         str(config.image_size),
         "--patch-size",

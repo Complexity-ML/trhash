@@ -14,7 +14,7 @@ class FakeBackend:
     def __init__(self, model, device=None):
         self.model_id = str(model)
         self.providers = [device or "CPUExecutionProvider"]
-        self.metadata = SimpleNamespace(num_classes=1, format_version=4, task="detection")
+        self.metadata = SimpleNamespace(num_classes=1, format_version=5, task="detection")
 
     def predict(self, image, **_options):
         return Result(image, [(1, 2, 10, 12)], [0.9], [0], ("object",))

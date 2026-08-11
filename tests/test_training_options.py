@@ -5,6 +5,8 @@ from trhash.training_options import architecture_arguments
 
 def test_checkpoint_architecture_is_forwarded_to_sft():
     config = SimpleNamespace(
+        architecture_version=5,
+        neck_mode="pan",
         image_size=224,
         patch_size=8,
         vision_hidden_size=128,
@@ -32,6 +34,8 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
     arguments = architecture_arguments(config)
 
     assert arguments[arguments.index("--image-size") + 1] == "224"
+    assert arguments[arguments.index("--architecture-version") + 1] == "5"
+    assert arguments[arguments.index("--neck-mode") + 1] == "pan"
     assert arguments[arguments.index("--vision-num-experts") + 1] == "4"
     assert arguments[arguments.index("--reg-max") + 1] == "16"
     assert "--objectness-loss-weight" not in arguments

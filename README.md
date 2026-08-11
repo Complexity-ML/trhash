@@ -81,7 +81,7 @@ report = model.tune(
 print(report.best.parameters, report.best.metrics["map50"])
 ```
 
-`train()` transfers a compatible v0.4 detector: vision tower, feature pyramid,
+`train()` transfers a compatible v5 detector: vision tower, PAN feature fusion,
 decoupled head, LTRB/DFL regression, and quality-class rows. Class rows with
 the same name are copied automatically; new classes are initialized and trained.
 `resume=True` is intentionally strict: it requires a new-format checkpoint
@@ -251,7 +251,7 @@ from the research framework while preserving one `Vision` API everywhere.
 
 ## Vision tasks
 
-Bundle format v4 records the task and named graph outputs. Detection,
+Bundle format v5 records the task and named graph outputs. Detection,
 classification, semantic segmentation, metric depth, pose, and instance
 segmentation, and oriented bounding boxes currently have
 complete local checkpoint, ONNX, TorchScript, CoreML, TensorRT-compatible
@@ -259,7 +259,7 @@ export, serving, and result paths. Pose heatmaps are decoded to named source
 image keypoints with peak scores and optional skeleton rendering. Instance
 segmentation combines prototype masks after NMS, restores them through the
 letterbox transform, and transports them losslessly as PNG. OBB predictions
-carry radian angles and render as rotated quadrilaterals. Only v4 bundles are
+carry radian angles and render as rotated quadrilaterals. Only v5 bundles are
 accepted; all seven declared task families now have complete runtime paths.
 
 ## Remote endpoint

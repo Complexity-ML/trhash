@@ -12,7 +12,7 @@ from trhash.preprocessing import preprocess, restore_boxes
 
 def _metadata(**overrides) -> ModelMetadata:
     values = {
-        "format_version": 4,
+        "format_version": 5,
         "task": "detection",
         "model_file": "model.onnx",
         "image_size": 32,
@@ -36,9 +36,9 @@ def test_metadata_round_trip(tmp_path: Path):
     assert ModelMetadata.load(tmp_path) == metadata
 
 
-def test_only_bundle_format_v4_is_accepted():
+def test_only_bundle_format_v5_is_accepted():
     values = asdict(_metadata())
-    values["format_version"] = 2
+    values["format_version"] = 4
 
     with pytest.raises(ValueError, match="unsupported TR-Hash model bundle"):
         ModelMetadata.from_dict(values)

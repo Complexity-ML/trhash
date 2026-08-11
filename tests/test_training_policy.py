@@ -21,8 +21,10 @@ def test_augmentation_is_explicit_finetuning_policy(monkeypatch, tmp_path: Path)
         checkpoint=tmp_path / "source",
         device="cpu",
         model=SimpleNamespace(
-            config=SimpleNamespace(
-                image_size=32,
+                config=SimpleNamespace(
+                    architecture_version=5,
+                    neck_mode="pan",
+                    image_size=32,
                 patch_size=8,
                 vision_hidden_size=32,
                 vision_layers=1,
@@ -83,8 +85,10 @@ def test_resume_uses_exact_checkpoint_without_transfer_mapping(monkeypatch, tmp_
         checkpoint=checkpoint,
         device="cpu",
         model=SimpleNamespace(
-            config=SimpleNamespace(
-                image_size=32,
+                config=SimpleNamespace(
+                    architecture_version=5,
+                    neck_mode="pan",
+                    image_size=32,
                 patch_size=8,
                 vision_hidden_size=32,
                 vision_layers=1,
