@@ -18,6 +18,19 @@ class Result:
     names: Sequence[str]
     source: Optional[str] = None
     speed: Dict[str, float] = field(default_factory=dict)
+    track_ids: Optional[List[Optional[int]]] = None
+    frame_index: Optional[int] = None
+    timestamp: Optional[float] = None
+    fps: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        if not (len(self.boxes) == len(self.scores) == len(self.labels)):
+            raise ValueError("boxes, scores, and labels must have equal lengths")
+        if self.track_ids is not None and len(self.track_ids) != len(self.boxes):
+            raise ValueError("track_ids must align with boxes")
+
+    def _aligned_track_ids(self) -> List[Optional[int]]:
+        return [None] * len(self.boxes) if self.track_ids is None else self.track_ids
 
     @classmethod
     def from_payload(cls, image: Image.Image, payload: Dict[str, Any]) -> "Result":
@@ -33,6 +46,18 @@ class Result:
             scores=[float(item["score"]) for item in detections],
             labels=[int(item["label"]) for item in detections],
             names=tuple(names),
+            track_ids=(
+                [
+                    int(item["track_id"]) if item.get("track_id") is not None else None
+                    for item in detections
+                ]
+                if any("track_id" in item for item in detections)
+                else None
+            ),
+            source=payload.get("source"),
+            frame_index=payload.get("frame_index"),
+            timestamp=payload.get("timestamp"),
+            fps=payload.get("fps"),
             speed={
                 str(name): float(value)
                 for name, value in payload.get("speed", {}).items()
@@ -41,16 +66,23 @@ class Result:
 
     def to_dict(self) -> Dict[str, Any]:
         detections = []
-        for box, score, label in zip(self.boxes, self.scores, self.labels):
+        track_ids = self._aligned_track_ids()
+        for box, score, label, track_id in zip(
+            self.boxes,
+            self.scores,
+            self.labels,
+            track_ids,
+        ):
             name = self.names[label] if label < len(self.names) else str(label)
-            detections.append(
-                {
-                    "box_xyxy": list(box),
-                    "score": score,
-                    "label": label,
-                    "class_name": name,
-                }
-            )
+            detection = {
+                "box_xyxy": list(box),
+                "score": score,
+                "label": label,
+                "class_name": name,
+            }
+            if track_id is not None:
+                detection["track_id"] = track_id
+            detections.append(detection)
         payload = {
             "image": {"width": self.image.width, "height": self.image.height},
             "detections": detections,
@@ -59,6 +91,12 @@ class Result:
             payload["source"] = self.source
         if self.speed:
             payload["speed"] = dict(self.speed)
+        if self.frame_index is not None:
+            payload["frame_index"] = self.frame_index
+        if self.timestamp is not None:
+            payload["timestamp"] = self.timestamp
+        if self.fps is not None:
+            payload["fps"] = self.fps
         return payload
 
     def plot(
@@ -71,7 +109,13 @@ class Result:
         rendered = self.image.copy()
         draw = ImageDraw.Draw(rendered)
         width = line_width or max(round((rendered.width + rendered.height) * 0.0015), 2)
-        for box, score, label in zip(self.boxes, self.scores, self.labels):
+        track_ids = self._aligned_track_ids()
+        for box, score, label, track_id in zip(
+            self.boxes,
+            self.scores,
+            self.labels,
+            track_ids,
+        ):
             color = (
                 50 + (37 * label + 53) % 205,
                 50 + (97 * label + 29) % 205,
@@ -83,7 +127,7 @@ class Result:
             name = self.names[label] if label < len(self.names) else str(label)
             parts = []
             if labels:
-                parts.append(name)
+                parts.append(f"{name} #{track_id}" if track_id is not None else name)
             if conf:
                 parts.append(f"{score:.2f}")
             text = " ".join(parts)

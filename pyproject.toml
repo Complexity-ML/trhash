@@ -36,6 +36,8 @@ tensorrt = [
     "nvidia-modelopt[onnx]>=0.45; platform_system == 'Linux'",
     "huggingface-hub>=0.27",
 ]
+video = ["numpy>=1.24", "opencv-python-headless>=4.8"]
+tracking = ["numpy>=1.24"]
 runtime = [
     "numpy>=1.24",
     "onnxruntime>=1.20",

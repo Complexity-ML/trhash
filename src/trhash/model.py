@@ -8,7 +8,13 @@ from typing import Optional, Union
 
 from .backends.remote import RemoteBackend
 from .result import Result
-from .sources import PredictionSource, chunks, expand_sources
+from .sources import (
+    PredictionSource,
+    attach_source_metadata,
+    chunks,
+    expand_sources,
+    inference_source,
+)
 
 PredictionOutput = Union[Result, list[Result], Iterator[Result]]
 
@@ -65,13 +71,30 @@ class Vision:
         sources, single = expand_sources(source)
 
         def generate() -> Iterator[Result]:
-            predict_batch = getattr(self.backend, "predict_batch", None)
-            for group in chunks(sources, batch):
-                if predict_batch is not None:
-                    yield from predict_batch(group, confidence=confidence, iou=iou)
-                else:
-                    for item in group:
-                        yield self.backend.predict(item, confidence=confidence, iou=iou)
+            try:
+                predict_batch = getattr(self.backend, "predict_batch", None)
+                for group in chunks(sources, batch):
+                    inference_group = [inference_source(item) for item in group]
+                    if predict_batch is not None:
+                        predicted = predict_batch(
+                            inference_group,
+                            confidence=confidence,
+                            iou=iou,
+                        )
+                    else:
+                        predicted = [
+                            self.backend.predict(item, confidence=confidence, iou=iou)
+                            for item in inference_group
+                        ]
+                    if len(predicted) != len(group):
+                        raise RuntimeError("prediction backend returned the wrong batch size")
+                    for item, result in zip(group, predicted):
+                        attach_source_metadata(result, item)
+                        yield result
+            finally:
+                close = getattr(sources, "close", None)
+                if close is not None:
+                    close()
 
         results = generate()
         if stream:
@@ -81,6 +104,66 @@ class Vision:
         return list(results)
 
     __call__ = predict
+
+    def track(
+        self,
+        source: PredictionSource,
+        *,
+        high_threshold: float = 0.5,
+        low_threshold: float = 0.1,
+        new_track_threshold: Optional[float] = None,
+        match_iou_threshold: float = 0.3,
+        second_match_iou_threshold: float = 0.2,
+        track_buffer: int = 30,
+        iou: float = 0.45,
+        batch: int = 1,
+        stream: bool = False,
+        persist: bool = False,
+    ) -> Union[list[Result], Iterator[Result]]:
+        try:
+            from .tracking import ByteTracker
+        except ImportError as error:
+            raise RuntimeError(
+                'tracking requires `pip install "trhash[tracking]"`'
+            ) from error
+
+        if persist and hasattr(self, "_tracker"):
+            tracker = self._tracker
+        else:
+            tracker = ByteTracker(
+                high_threshold=high_threshold,
+                low_threshold=low_threshold,
+                new_track_threshold=new_track_threshold,
+                match_iou_threshold=match_iou_threshold,
+                second_match_iou_threshold=second_match_iou_threshold,
+                track_buffer=track_buffer,
+            )
+            if persist:
+                self._tracker = tracker
+        detections = self.predict(
+            source,
+            confidence=low_threshold,
+            iou=iou,
+            batch=batch,
+            stream=True,
+        )
+
+        def generate() -> Iterator[Result]:
+            try:
+                for result in detections:
+                    result.track_ids = tracker.update(
+                        result.boxes,
+                        result.scores,
+                        result.labels,
+                    )
+                    yield result
+            finally:
+                close = getattr(detections, "close", None)
+                if close is not None:
+                    close()
+
+        tracked = generate()
+        return tracked if stream else list(tracked)
 
     def train(self, **options) -> Path:
         train = getattr(self.backend, "train", None)

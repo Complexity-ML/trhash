@@ -12,6 +12,7 @@ Install only what the deployment needs (PyPI publication will come later):
 pip install -e ".[runtime]"       # ONNX inference, no research framework
 pip install -e ".[serve]"         # autonomous FastAPI server
 pip install -e ".[local,export]"  # PyTorch training/export adapter
+pip install -e ".[runtime,video,tracking]"  # video files, streams, ByteTrack
 ```
 
 ```python
@@ -25,6 +26,9 @@ result.save("prediction.jpg")
 results = model.predict("images/", batch=16)
 for result in model.predict("images/", batch=16, stream=True):
     print(result.to_dict())
+
+for result in model.track("video.mp4", stream=True):
+    print(result.frame_index, result.track_ids)
 
 print(result.speed)  # preprocess/inference/postprocess milliseconds per image
 result.plot(labels=True, conf=True, line_width=2)
@@ -68,6 +72,9 @@ trhash predict model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC source=image.jpg save=p
 
 trhash predict model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
   source=images/ batch=16 stream=true save=runs/predict
+
+trhash track model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  source=video.mp4 stream=true save=runs/track/video.mp4
 
 trhash val model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
   data=dataset.yaml batch=16
@@ -193,6 +200,8 @@ continue to use the same `Vision(endpoint=...)` API.
 - `trhash[tensorrt]`: native NVIDIA engine building/inference with dynamic
   batching. Engines must be built on the target GPU/TensorRT stack and treated
   as trusted executable artifacts;
+- `trhash[video]`: lazy video/webcam/RTSP input and annotated video output;
+- `trhash[tracking]`: dependency-light ByteTrack-style two-stage association;
 - `trhash[serve]`: standalone FastAPI backend and Docker image;
 - `trhash[local,export]`: optional adapter used only for training checkpoints
   and producing portable bundles;

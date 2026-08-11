@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Dict
 
 from .arguments import optional_bool, reject_unknown, require
 from .model import Vision
 from .publishing import publish_bundle
-from .result import Result
+from .reporting import emit_predictions
 
 
 def vision(options: Dict[str, str]) -> Vision:
@@ -41,37 +40,38 @@ def predict(options: Dict[str, str]) -> None:
         batch=batch,
         stream=stream,
     )
-    if isinstance(result, Result):
-        payload = result.to_dict()
-        if save is not None:
-            output = (
-                Path("runs/predict") / f"{Path(source).stem}.jpg"
-                if save.casefold() in {"1", "true", "yes"}
-                else Path(save)
-            )
-            payload["saved"] = str(result.save(output))
-        print(json.dumps(payload, indent=2))
-        return
+    emit_predictions(result, source=source, save=save, stream=stream)
 
-    output_directory = None
-    if save is not None:
-        output_directory = (
-            Path("runs/predict")
-            if save.casefold() in {"1", "true", "yes"}
-            else Path(save)
-        )
-    payloads = []
-    for index, item in enumerate(result):
-        payload = item.to_dict()
-        if output_directory is not None:
-            name = Path(item.source).stem if item.source else f"prediction_{index:06d}"
-            payload["saved"] = str(item.save(output_directory / f"{name}.jpg"))
-        if stream:
-            print(json.dumps(payload))
-        else:
-            payloads.append(payload)
-    if not stream:
-        print(json.dumps(payloads, indent=2))
+
+def track(options: Dict[str, str]) -> None:
+    source = require(options, "source")
+    tracking = {
+        "high_threshold": float(options.pop("high_threshold", "0.5")),
+        "low_threshold": float(options.pop("low_threshold", "0.1")),
+        "match_iou_threshold": float(options.pop("match_iou_threshold", "0.3")),
+        "second_match_iou_threshold": float(
+            options.pop("second_match_iou_threshold", "0.2")
+        ),
+        "track_buffer": int(options.pop("track_buffer", "30")),
+        "iou": float(options.pop("iou", "0.45")),
+        "batch": int(options.pop("batch", "1")),
+        "stream": optional_bool(options, "stream", True),
+    }
+    new_track_threshold = options.pop("new_track_threshold", None)
+    tracking["new_track_threshold"] = (
+        float(new_track_threshold) if new_track_threshold is not None else None
+    )
+    save = options.pop("save", None)
+    model = vision(options)
+    reject_unknown(options)
+    result = model.track(source, **tracking)
+    emit_predictions(
+        result,
+        source=source,
+        save=save,
+        stream=tracking["stream"],
+        task="track",
+    )
 
 
 def val(options: Dict[str, str]) -> None:
@@ -184,6 +184,7 @@ def info(options: Dict[str, str]) -> None:
 
 HANDLERS = {
     "predict": predict,
+    "track": track,
     "val": val,
     "train": train,
     "sft": train,

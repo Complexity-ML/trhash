@@ -11,7 +11,8 @@ from .commands import HANDLERS
 USAGE = """TR-Hash Vision
 
 Usage:
-  trhash predict model=MODEL source=IMAGE_OR_DIR [batch=16] [stream=true] [save=OUTPUT]
+  trhash predict model=MODEL source=IMAGE_DIR_OR_VIDEO [batch=16] [stream=true]
+  trhash track model=MODEL source=VIDEO_OR_STREAM [stream=true] [save=OUTPUT.mp4]
   trhash val model=MODEL data=DATASET.yaml [batch=16] [confidence=0.001]
   trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
   trhash export model=MODEL [format=onnx|torchscript|coreml|tensorrt] [output=DIR]
