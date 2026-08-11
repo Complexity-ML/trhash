@@ -57,6 +57,17 @@ def test_numpy_decode_dfl_prediction():
     assert labels.tolist() == [1]
 
 
+def test_numpy_decode_returns_typed_empty_detections():
+    raw = np.full((1, 6), -8.0, dtype=np.float32)
+
+    boxes, scores, labels = decode(raw, _metadata(), confidence=0.99, iou=0.45)
+
+    assert boxes.shape == (0, 4)
+    assert scores.shape == (0,)
+    assert labels.shape == (0,)
+    assert labels.dtype == np.int64
+
+
 def test_letterbox_restore_round_trip():
     metadata = _metadata()
     pixels, geometry = preprocess(Image.new("RGB", (80, 40), "white"), metadata)

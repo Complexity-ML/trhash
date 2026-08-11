@@ -23,7 +23,7 @@ class FakeBackend:
 def test_server_health_authentication_and_prediction(monkeypatch, tmp_path):
     import trhash.server.app as server_app
 
-    monkeypatch.setattr(server_app, "OnnxBackend", FakeBackend)
+    monkeypatch.setattr(server_app, "load_portable_backend", FakeBackend)
     app = server_app.create_app("model", api_key="secret")
     client = TestClient(app)
     image = tmp_path / "image.jpg"

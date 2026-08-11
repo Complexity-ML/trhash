@@ -35,4 +35,7 @@ def class_aware_nms(
     for label in np.unique(labels):
         indices = np.flatnonzero(labels == label)
         kept.extend(indices[_nms(boxes[indices], scores[indices], threshold)].tolist())
-    return np.asarray(sorted(kept, key=lambda index: scores[index], reverse=True)[:max_detections])
+    return np.asarray(
+        sorted(kept, key=lambda index: scores[index], reverse=True)[:max_detections],
+        dtype=np.int64,
+    )

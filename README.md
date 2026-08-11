@@ -105,7 +105,15 @@ trhash export \
   model=artifacts/detector/best \
   runtime=torch \
   device=cpu \
+  format=onnx \
   output=artifacts/trhash-onnx
+
+trhash export \
+  model=artifacts/detector/best \
+  runtime=torch \
+  device=cpu \
+  format=torchscript \
+  output=artifacts/trhash-torchscript
 
 trhash serve \
   model=artifacts/trhash-onnx \
@@ -114,9 +122,11 @@ trhash serve \
   port=8000
 ```
 
-The portable bundle contains:
+Both exports run raw-output parity checks against the PyTorch checkpoint before
+the bundle is accepted. The portable bundle contains:
 
-- `model.onnx`: fixed-resolution inference graph with dynamic batching;
+- `model.onnx` or `model.torchscript`: fixed-resolution inference graph with
+  dynamic batching;
 - `trhash.json`: classes, feature-grid geometry, DFL bins, score encoding,
   preprocessing, calibrated confidence, and NMS metadata.
 
@@ -159,6 +169,8 @@ continue to use the same `Vision(endpoint=...)` API.
 ## Package boundaries
 
 - `trhash[runtime]`: local ONNX inference on CPU, CUDA, or CoreML;
+- `trhash[torchscript]`: autonomous TorchScript inference with PyTorch but no
+  research framework;
 - `trhash[serve]`: standalone FastAPI backend and Docker image;
 - `trhash[local,export]`: optional adapter used only for training checkpoints
   and producing portable bundles;

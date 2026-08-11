@@ -109,9 +109,9 @@ class LocalBackend:
         return FineTuner(self).run(**options)
 
     def export(self, **options) -> Path:
-        from ..exporter import export_onnx
+        from ..exporter import export_model
 
-        return export_onnx(self, **options)
+        return export_model(self, **options)
 
     def serve(
         self,

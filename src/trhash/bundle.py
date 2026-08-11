@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Union
 
+from .metadata import ModelMetadata
+
 
 def resolve_bundle(
     model: Union[str, Path],
@@ -25,10 +27,14 @@ def resolve_bundle(
                 repo_id=str(model),
                 revision=revision,
                 token=token,
-                allow_patterns=("model.onnx", "trhash.json"),
+                allow_patterns=("trhash.json", "*.onnx", "*.torchscript"),
             )
         )
-    for filename in ("model.onnx", "trhash.json"):
-        if not (bundle / filename).is_file():
-            raise FileNotFoundError(f"portable model bundle is missing {filename}: {bundle}")
+    if not (bundle / "trhash.json").is_file():
+        raise FileNotFoundError(f"portable model bundle is missing trhash.json: {bundle}")
+    metadata = ModelMetadata.load(bundle)
+    if not (bundle / metadata.model_file).is_file():
+        raise FileNotFoundError(
+            f"portable model bundle is missing {metadata.model_file}: {bundle}"
+        )
     return bundle

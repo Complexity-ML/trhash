@@ -26,7 +26,9 @@ export = [
     "complexity-framework>=0.3.0",
     "huggingface-hub>=0.27",
     "onnx>=1.17",
+    "onnxruntime>=1.20",
 ]
+torchscript = ["torch>=2.2", "huggingface-hub>=0.27"]
 runtime = [
     "numpy>=1.24",
     "onnxruntime>=1.20",

@@ -112,7 +112,9 @@ def train(options: Dict[str, str]) -> None:
 def export(options: Dict[str, str]) -> None:
     exporting = {
         "output": options.pop("output", "runs/export"),
+        "format": options.pop("format", "onnx"),
         "opset": int(options.pop("opset", "18")),
+        "verify": optional_bool(options, "verify", True),
     }
     model = vision(options)
     reject_unknown(options)

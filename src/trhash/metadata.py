@@ -33,6 +33,8 @@ class ModelMetadata:
         metadata = cls(**values)
         if metadata.format_version != 2 or metadata.task != "detection":
             raise ValueError("unsupported TR-Hash model bundle")
+        if Path(metadata.model_file).name != metadata.model_file:
+            raise ValueError("model_file must be a filename inside the bundle")
         if len(metadata.class_names) != metadata.num_classes:
             raise ValueError("class_names must match num_classes")
         if metadata.reg_max < 0 or metadata.reg_max == 1:

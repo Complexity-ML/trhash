@@ -31,17 +31,25 @@ class Vision:
             self.backend = RemoteBackend(str(model), endpoint, api_key=api_key)
         else:
             path = Path(model).expanduser()
-            use_onnx = runtime == "onnx" or (runtime == "auto" and (not path.is_dir() or (path / "trhash.json").exists()))
-            if use_onnx:
-                from .backends.onnx import OnnxBackend
+            use_portable = runtime in {"onnx", "torchscript"} or (
+                runtime == "auto" and (not path.is_dir() or (path / "trhash.json").exists())
+            )
+            if use_portable:
+                from .backends.portable import load_portable_backend
 
-                self.backend = OnnxBackend(model, device=device, revision=revision, token=token)
+                self.backend = load_portable_backend(
+                    model,
+                    runtime=runtime,
+                    device=device,
+                    revision=revision,
+                    token=token,
+                )
             elif runtime in {"auto", "torch"}:
                 from .backends.local import LocalBackend
 
                 self.backend = LocalBackend(model, device=device, revision=revision, token=token)
             else:
-                raise ValueError("runtime must be auto, onnx, or torch")
+                raise ValueError("runtime must be auto, onnx, torchscript, or torch")
 
     def predict(
         self,

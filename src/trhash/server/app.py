@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 from PIL import Image
 
-from ..backends.onnx import OnnxBackend
+from ..backends.portable import load_portable_backend
 
 
 def create_app(
@@ -21,7 +21,7 @@ def create_app(
         from fastapi.concurrency import run_in_threadpool
     except ImportError as error:
         raise RuntimeError('server dependencies require `pip install "trhash[serve]"`') from error
-    backend = OnnxBackend(model, device=device)
+    backend = load_portable_backend(model, device=device)
     app = FastAPI(title="TR-Hash Vision Server", version="0.2.0")
 
     def authenticate(x_api_key: Optional[str] = Header(default=None)) -> None:

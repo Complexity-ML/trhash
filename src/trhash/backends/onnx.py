@@ -3,19 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 import numpy as np
 
-from PIL import Image
-
 from ..bundle import resolve_bundle
-from ..decoding import decode
 from ..metadata import ModelMetadata
-from ..preprocessing import preprocess, restore_boxes
-from ..result import Result
-
-ImageSource = Union[str, Path, Image.Image]
+from .portable import PortableDetectionBackend
 
 
 def _providers(ort, requested: Optional[str]) -> list[str]:
@@ -37,7 +31,7 @@ def _providers(ort, requested: Optional[str]) -> list[str]:
     ]
 
 
-class OnnxBackend:
+class OnnxBackend(PortableDetectionBackend):
     def __init__(
         self,
         model: Union[str, Path],
@@ -60,54 +54,8 @@ class OnnxBackend:
         )
         self.names = self.metadata.class_names
 
-    def predict(
-        self,
-        source: ImageSource,
-        *,
-        confidence: Optional[float] = None,
-        iou: float = 0.45,
-    ) -> Result:
-        return self.predict_batch((source,), confidence=confidence, iou=iou)[0]
-
-    def predict_batch(
-        self,
-        sources: Sequence[ImageSource],
-        *,
-        confidence: Optional[float] = None,
-        iou: float = 0.45,
-    ) -> list[Result]:
-        images = [
-            (source.copy() if isinstance(source, Image.Image) else Image.open(source)).convert("RGB")
-            for source in sources
-        ]
-        prepared = [preprocess(image, self.metadata) for image in images]
-        pixels = np.stack([item[0] for item in prepared])
-        predictions = self.session.run(("predictions",), {"pixel_values": pixels})[0]
-        threshold = (
-            float(confidence)
-            if confidence is not None
-            else self.metadata.recommended_confidence
-        )
-        results = []
-        for source, image, raw, (_, geometry) in zip(sources, images, predictions, prepared):
-            boxes, scores, labels = decode(
-                raw,
-                self.metadata,
-                confidence=threshold,
-                iou=iou,
-            )
-            boxes = restore_boxes(boxes, self.metadata, geometry)
-            results.append(
-                Result(
-                    image=image,
-                    boxes=[tuple(float(value) for value in box) for box in boxes],
-                    scores=[float(value) for value in scores],
-                    labels=[int(value) for value in labels],
-                    names=self.names,
-                    source=None if isinstance(source, Image.Image) else str(source),
-                )
-            )
-        return results
+    def _predict_raw(self, pixels: np.ndarray) -> np.ndarray:
+        return self.session.run(("predictions",), {"pixel_values": pixels})[0]
 
     def serve(self, **options) -> None:
         from ..server.runner import run_server
