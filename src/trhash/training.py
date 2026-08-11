@@ -76,8 +76,6 @@ class FineTuner:
             str(lr),
             "--expert-lr-multiplier",
             str(expert_lr_multiplier),
-            "--optimizer",
-            "sgd",
             "--seed",
             str(seed),
             "--device",

@@ -17,8 +17,9 @@ class ModelMetadata:
     num_classes: int
     class_names: Tuple[str, ...]
     grid_sizes: Tuple[int, ...]
-    center_offset_mode: str
-    end_to_end: bool
+    reg_max: int
+    box_encoding: str
+    score_encoding: str
     recommended_confidence: float
     letterbox_color: Tuple[int, int, int] = (114, 114, 114)
     image_mean: Tuple[float, float, float] = (0.5, 0.5, 0.5)
@@ -30,10 +31,16 @@ class ModelMetadata:
         for field in ("class_names", "grid_sizes", "letterbox_color", "image_mean", "image_std"):
             values[field] = tuple(values[field])
         metadata = cls(**values)
-        if metadata.format_version != 1 or metadata.task != "detection":
+        if metadata.format_version != 2 or metadata.task != "detection":
             raise ValueError("unsupported TR-Hash model bundle")
         if len(metadata.class_names) != metadata.num_classes:
             raise ValueError("class_names must match num_classes")
+        if metadata.reg_max < 0 or metadata.reg_max == 1:
+            raise ValueError("reg_max must be 0 or at least 2")
+        if metadata.box_encoding != "stride_ltrb_dfl":
+            raise ValueError("unsupported box encoding")
+        if metadata.score_encoding != "quality_class_sigmoid":
+            raise ValueError("unsupported score encoding")
         return metadata
 
     @classmethod
@@ -49,14 +56,15 @@ class ModelMetadata:
 def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMetadata:
     config = backend.model.config
     return ModelMetadata(
-        format_version=1,
+        format_version=2,
         task="detection",
         model_file=model_file,
         image_size=config.image_size,
         num_classes=config.num_classes,
         class_names=tuple(backend.names),
         grid_sizes=tuple(config.grid_sizes),
-        center_offset_mode=config.center_offset_mode,
-        end_to_end=False,
+        reg_max=config.reg_max,
+        box_encoding="stride_ltrb_dfl",
+        score_encoding="quality_class_sigmoid",
         recommended_confidence=float(backend.validation.get("best_confidence", 0.25)),
     )

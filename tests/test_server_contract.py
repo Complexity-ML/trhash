@@ -14,7 +14,7 @@ class FakeBackend:
     def __init__(self, model, device=None):
         self.model_id = str(model)
         self.providers = [device or "CPUExecutionProvider"]
-        self.metadata = SimpleNamespace(num_classes=1)
+        self.metadata = SimpleNamespace(num_classes=1, format_version=2, task="detection")
 
     def predict(self, image, **_options):
         return Result(image, [(1, 2, 10, 12)], [0.9], [0], ("object",))
@@ -30,6 +30,11 @@ def test_server_health_authentication_and_prediction(monkeypatch, tmp_path):
     Image.new("RGB", (20, 20), "white").save(image)
 
     assert client.get("/health").status_code == 200
+    assert client.get("/ready").json() == {
+        "ready": True,
+        "task": "detection",
+        "num_classes": 1,
+    }
     assert client.get("/v1/model").status_code == 401
     with image.open("rb") as handle:
         response = client.post(

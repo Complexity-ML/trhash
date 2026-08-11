@@ -68,7 +68,7 @@ class LocalBackend:
         with self.torch.inference_mode():
             prediction = self.model.predict(
                 pixels.unsqueeze(0).to(self.device),
-                objectness_threshold=selected_confidence,
+                confidence_threshold=selected_confidence,
                 iou_threshold=iou,
                 postprocess_on_cpu=self.device.type == "mps",
             )[0]
@@ -99,12 +99,17 @@ class LocalBackend:
         api_key: Optional[str] = None,
         jobs_root: Union[str, Path] = "runs/service",
     ) -> None:
-        from ..serving import serve_local
+        from ..server.runner import run_server
 
-        serve_local(
-            self,
+        bundle = self.export(output=Path(jobs_root) / "bundle")
+        runtime_device = {
+            "cuda": "cuda",
+            "mps": "coreml",
+        }.get(self.device.type, "cpu")
+        run_server(
+            bundle,
+            device=runtime_device,
             host=host,
             port=port,
             api_key=api_key,
-            jobs_root=jobs_root,
         )

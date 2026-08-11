@@ -22,7 +22,7 @@ def create_app(
     except ImportError as error:
         raise RuntimeError('server dependencies require `pip install "trhash[serve]"`') from error
     backend = OnnxBackend(model, device=device)
-    app = FastAPI(title="TR-Hash Vision Server", version="0.1.0")
+    app = FastAPI(title="TR-Hash Vision Server", version="0.2.0")
 
     def authenticate(x_api_key: Optional[str] = Header(default=None)) -> None:
         if api_key and x_api_key != api_key:
@@ -30,7 +30,20 @@ def create_app(
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "model": backend.model_id, "providers": backend.providers}
+        return {
+            "status": "ok",
+            "model": backend.model_id,
+            "providers": backend.providers,
+            "format_version": backend.metadata.format_version,
+        }
+
+    @app.get("/ready")
+    def ready():
+        return {
+            "ready": True,
+            "task": backend.metadata.task,
+            "num_classes": backend.metadata.num_classes,
+        }
 
     @app.get("/v1/model", dependencies=[Depends(authenticate)])
     def model_info():

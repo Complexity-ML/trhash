@@ -6,10 +6,12 @@ the research framework internals.
 
 ## Python
 
-Install the local runtime (PyPI publication will come later):
+Install only what the deployment needs (PyPI publication will come later):
 
 ```bash
-pip install -e ".[local,export,serve]"
+pip install -e ".[runtime]"       # ONNX inference, no research framework
+pip install -e ".[serve]"         # autonomous FastAPI server
+pip install -e ".[local,export]"  # PyTorch training/export adapter
 ```
 
 ```python
@@ -28,9 +30,9 @@ checkpoint = model.train(
 )
 ```
 
-`train()` transfers the complete detector: vision tower, feature pyramid,
-hidden detection heads, box regression, and objectness. Class rows with the
-same name are copied automatically; new classes are initialized and trained.
+`train()` transfers a compatible v0.4 detector: vision tower, feature pyramid,
+decoupled head, LTRB/DFL regression, and quality-class rows. Class rows with
+the same name are copied automatically; new classes are initialized and trained.
 
 ## CLI
 
@@ -62,9 +64,9 @@ directories.
 
 ## Export and production serving
 
-The research framework is used to train and export a checkpoint. Production
-inference uses the generated ONNX bundle and does not import PyTorch or
-`complexity-framework`.
+The research framework remains an optional training/export engine. Production
+inference and HTTP serving use the generated ONNX bundle and import neither
+PyTorch nor `complexity-framework`.
 
 ```bash
 trhash export \
@@ -83,8 +85,8 @@ trhash serve \
 The portable bundle contains:
 
 - `model.onnx`: fixed-resolution inference graph with dynamic batching;
-- `trhash.json`: classes, feature-grid geometry, preprocessing, calibrated
-  confidence, and NMS-free metadata.
+- `trhash.json`: classes, feature-grid geometry, DFL bins, score encoding,
+  preprocessing, calibrated confidence, and NMS metadata.
 
 Publish it beside the training artifacts on Hugging Face:
 
@@ -121,6 +123,17 @@ docker run --rm -p 8000:8000 \
 For NVIDIA production at larger scale, the same ONNX graph can be placed
 behind Triton/TensorRT for dynamic batching and GPU scheduling while clients
 continue to use the same `Vision(endpoint=...)` API.
+
+## Package boundaries
+
+- `trhash[runtime]`: local ONNX inference on CPU, CUDA, or CoreML;
+- `trhash[serve]`: standalone FastAPI backend and Docker image;
+- `trhash[local,export]`: optional adapter used only for training checkpoints
+  and producing portable bundles;
+- base `trhash`: small HTTP client for a remote endpoint.
+
+This separation keeps the public inference/server installation independent
+from the research framework while preserving one `Vision` API everywhere.
 
 ## Remote endpoint
 

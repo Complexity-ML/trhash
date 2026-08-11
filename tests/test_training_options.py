@@ -14,16 +14,14 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
         vision_top_k=2,
         vision_expert_width=48,
         assignment_top_k=5,
+        reg_max=16,
+        head_hidden_size=0,
+        dfl_loss_weight=0.5,
+        quality_focal_beta=2.0,
         box_loss_weight=5.0,
-        objectness_loss_weight=1.0,
-        class_loss_weight=1.0,
+        quality_loss_weight=1.0,
         box_l1_weight=0.25,
         box_iou_weight=1.0,
-        focal_alpha=0.5,
-        focal_gamma=2.0,
-        objectness_loss_type="varifocal",
-        varifocal_alpha=0.75,
-        varifocal_gamma=2.0,
         multi_scale=True,
         p2_head=True,
         dynamic_assignment=True,
@@ -35,4 +33,6 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
 
     assert arguments[arguments.index("--image-size") + 1] == "224"
     assert arguments[arguments.index("--vision-num-experts") + 1] == "4"
+    assert arguments[arguments.index("--reg-max") + 1] == "16"
+    assert "--objectness-loss-weight" not in arguments
     assert "--p2-head" in arguments

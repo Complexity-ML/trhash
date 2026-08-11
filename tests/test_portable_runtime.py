@@ -10,15 +10,16 @@ from trhash.preprocessing import preprocess, restore_boxes
 
 def _metadata(**overrides) -> ModelMetadata:
     values = {
-        "format_version": 1,
+        "format_version": 2,
         "task": "detection",
         "model_file": "model.onnx",
         "image_size": 32,
         "num_classes": 2,
         "class_names": ("cat", "dog"),
         "grid_sizes": (1,),
-        "center_offset_mode": "linear",
-        "end_to_end": True,
+        "reg_max": 0,
+        "box_encoding": "stride_ltrb_dfl",
+        "score_encoding": "quality_class_sigmoid",
         "recommended_confidence": 0.25,
     }
     values.update(overrides)
@@ -33,13 +34,26 @@ def test_metadata_round_trip(tmp_path: Path):
     assert ModelMetadata.load(tmp_path) == metadata
 
 
-def test_numpy_decode_one_to_one_prediction():
-    raw = np.array([[0.0, 0.0, 0.0, 0.0, 4.0, -2.0, 2.0]], dtype=np.float32)
+def test_numpy_decode_quality_ltrb_prediction():
+    distance = np.log(np.expm1(0.25))
+    raw = np.array([[distance, distance, distance, distance, -2.0, 4.0]], dtype=np.float32)
 
     boxes, scores, labels = decode(raw, _metadata(), confidence=0.2, iou=0.45)
 
     np.testing.assert_allclose(boxes, [[0.25, 0.25, 0.75, 0.75]], atol=1e-6)
-    assert scores[0] > 0.9
+    assert scores[0] > 0.98
+    assert labels.tolist() == [1]
+
+
+def test_numpy_decode_dfl_prediction():
+    metadata = _metadata(reg_max=2)
+    side = np.array([-8.0, 8.0, -8.0], dtype=np.float32)
+    raw = np.concatenate((np.tile(side, 4), np.array([-2.0, 4.0], dtype=np.float32)))[None]
+
+    boxes, scores, labels = decode(raw, metadata, confidence=0.2, iou=0.45)
+
+    np.testing.assert_allclose(boxes, [[0.0, 0.0, 1.0, 1.0]], atol=1e-3)
+    assert scores[0] > 0.98
     assert labels.tolist() == [1]
 
 

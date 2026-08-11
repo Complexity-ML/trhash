@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trhash"
-version = "0.1.0.dev0"
+version = "0.2.0.dev0"
 description = "Simple prediction, fine-tuning, and serving for TR-Hash Vision models"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -49,13 +49,14 @@ trhash-server = "trhash.server.runner:main"
 [project.urls]
 Homepage = "https://www.complexity-ai.fr/"
 Models = "https://huggingface.co/AETHORIA-AI"
-Source = "https://github.com/Complexity-ML"
+Source = "https://github.com/Complexity-ML/trhash"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100
