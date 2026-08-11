@@ -9,7 +9,7 @@ the research framework internals.
 Install the local runtime (PyPI publication will come later):
 
 ```bash
-pip install -e ".[local,serve]"
+pip install -e ".[local,export,serve]"
 ```
 
 ```python
@@ -59,6 +59,68 @@ names:
 Labels use normalized YOLO rows: `class_id cx cy width height`. By default,
 `labels/train` and `labels/val` are inferred from the corresponding `images`
 directories.
+
+## Export and production serving
+
+The research framework is used to train and export a checkpoint. Production
+inference uses the generated ONNX bundle and does not import PyTorch or
+`complexity-framework`.
+
+```bash
+trhash export \
+  model=artifacts/detector/best \
+  runtime=torch \
+  device=cpu \
+  output=artifacts/trhash-onnx
+
+trhash serve \
+  model=artifacts/trhash-onnx \
+  runtime=onnx \
+  host=0.0.0.0 \
+  port=8000
+```
+
+The portable bundle contains:
+
+- `model.onnx`: fixed-resolution inference graph with dynamic batching;
+- `trhash.json`: classes, feature-grid geometry, preprocessing, calibrated
+  confidence, and NMS-free metadata.
+
+Publish it beside the training artifacts on Hugging Face:
+
+```bash
+trhash publish \
+  bundle=artifacts/trhash-onnx \
+  repo=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  private=false
+```
+
+The server can then load the repository directly with
+`TRHASH_MODEL=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC`.
+
+The server exposes `GET /health`, authenticated `GET /v1/model`, and
+authenticated `POST /v1/predict`. Set `TR_HASH_API_KEY` to require
+`X-API-Key`.
+
+```bash
+curl -H 'X-API-Key: secret' -F file=@image.jpg \
+  'http://127.0.0.1:8000/v1/predict?confidence=0.25'
+```
+
+Container deployment:
+
+```bash
+docker build -t trhash-server .
+docker run --rm -p 8000:8000 \
+  -e TRHASH_MODEL=/models/trhash \
+  -e TR_HASH_API_KEY=secret \
+  -v "$PWD/artifacts/trhash-onnx:/models/trhash:ro" \
+  trhash-server
+```
+
+For NVIDIA production at larger scale, the same ONNX graph can be placed
+behind Triton/TensorRT for dynamic batching and GPU scheduling while clients
+continue to use the same `Vision(endpoint=...)` API.
 
 ## Remote endpoint
 

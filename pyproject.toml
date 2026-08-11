@@ -22,14 +22,29 @@ local = [
     "huggingface-hub>=0.27",
     "safetensors>=0.4",
 ]
-serve = [
-    "complexity-framework[serve]>=0.3.0",
+export = [
+    "complexity-framework>=0.3.0",
     "huggingface-hub>=0.27",
+    "onnx>=1.17",
+]
+runtime = [
+    "numpy>=1.24",
+    "onnxruntime>=1.20",
+    "huggingface-hub>=0.27",
+]
+serve = [
+    "numpy>=1.24",
+    "onnxruntime>=1.20",
+    "huggingface-hub>=0.27",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
 ]
 dev = ["pytest>=8", "ruff>=0.8"]
 
 [project.scripts]
 trhash = "trhash.cli:main"
+trhash-server = "trhash.server.runner:main"
 
 [project.urls]
 Homepage = "https://www.complexity-ai.fr/"
