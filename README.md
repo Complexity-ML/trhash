@@ -68,6 +68,17 @@ checkpoint = Vision("runs/train/step_001000", runtime="torch").train(
     device="cuda",
     resume=True,
 )
+
+# Deterministic search; interrupted trials resume from training_state.pt.
+report = model.tune(
+    data="dataset.yaml",
+    output="runs/tune",
+    iterations=10,
+    epochs=10,
+    batch=64,
+    device="cuda",
+)
+print(report.best.parameters, report.best.metrics["map50"])
 ```
 
 `train()` transfers a compatible v0.4 detector: vision tower, feature pyramid,
@@ -100,6 +111,13 @@ trhash train model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
 trhash train model=runs/train/step_001000 runtime=torch \
   data=dataset.yaml output=runs/train epochs=20 batch=64 device=cuda resume=true
 
+trhash tune model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  data=dataset.yaml output=runs/tune iterations=10 epochs=10 batch=64 device=cuda
+
+trhash tune model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC \
+  data=dataset.yaml output=runs/tune iterations=10 epochs=10 batch=64 \
+  device=cuda resume=true
+
 trhash serve model=AETHORIA-AI/TR-HASH-Vision-0.8M-VOC host=0.0.0.0 port=8000
 ```
 
@@ -119,6 +137,12 @@ Labels use normalized YOLO rows: `class_id cx cy width height`. By default,
 directories. Detection fine-tuning defaults to `augmentation=strong`; use
 `augmentation=light` for a controlled or low-data run. This is a training
 policy, not checkpoint architecture metadata.
+
+`tune()` searches only explicit training policy (`lr`, expert LR multiplier,
+and augmentation), never architecture hidden in a checkpoint. It writes a
+fixed `tune_plan.json`, one durable `trial.json` per run, and ranks completed
+trials by mAP50 then F1. Reusing the output requires `resume=True` and exactly
+the same model, dataset, search space, and training options.
 
 ## Export and production serving
 

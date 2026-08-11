@@ -206,6 +206,11 @@ class Vision:
 
         return benchmark_model(self, source, **options)
 
+    def tune(self, **options):
+        from .tuning import run_tuning
+
+        return run_tuning(self, **options)
+
     def serve(self, **options) -> None:
         serve = getattr(self.backend, "serve", None)
         if serve is None:

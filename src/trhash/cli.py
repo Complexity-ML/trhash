@@ -17,6 +17,7 @@ Usage:
   trhash train model=MODEL data=DATASET.yaml [epochs=20] [augmentation=strong] [device=cuda]
   trhash export model=MODEL [format=onnx|torchscript|coreml|tensorrt] [output=DIR]
   trhash benchmark model=MODEL source=IMAGE [formats=onnx,torchscript] [runs=20]
+  trhash tune model=MODEL data=DATASET.yaml [iterations=10] [epochs=10] [resume=true]
   trhash publish bundle=BUNDLE repo=ORG/MODEL [private=true]
   trhash serve model=MODEL [host=127.0.0.1] [port=8000]
   trhash info model=MODEL

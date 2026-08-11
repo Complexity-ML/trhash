@@ -12,6 +12,7 @@ from .pose import PoseResult
 from .result import Result
 from .segmentation import SemanticSegmentationResult
 from .validation import ValidationMetrics
+from .tuning import TuneReport, TuneTrial
 
 if TYPE_CHECKING:
     from .tracking import ByteTracker
@@ -27,6 +28,8 @@ __all__ = [
     "PoseResult",
     "Result",
     "SemanticSegmentationResult",
+    "TuneReport",
+    "TuneTrial",
     "ValidationMetrics",
     "Vision",
 ]

@@ -144,6 +144,41 @@ def benchmark(options: Dict[str, str]) -> None:
     print(json.dumps(model.benchmark(source, **benchmarking).to_dict(), indent=2))
 
 
+def _comma_values(options: Dict[str, str], name: str, cast):
+    value = options.pop(name, None)
+    return None if value is None else tuple(cast(item.strip()) for item in value.split(","))
+
+
+def tune(options: Dict[str, str]) -> None:
+    space = {}
+    for public_name, parameter_name, cast in (
+        ("lrs", "lr", float),
+        ("expert_lr_multipliers", "expert_lr_multiplier", float),
+        ("augmentations", "augmentation", str),
+    ):
+        values = _comma_values(options, public_name, cast)
+        if values is not None:
+            space[parameter_name] = values
+    tuning = {
+        "data": require(options, "data"),
+        "output": options.pop("output", "runs/tune"),
+        "iterations": int(options.pop("iterations", "10")),
+        "epochs": int(options.pop("epochs", "10")),
+        "batch": int(options.pop("batch", "16")),
+        "workers": int(options.pop("workers", "0")),
+        "seed": int(options.pop("seed", "42")),
+        "resume": optional_bool(options, "resume", False),
+        "space": space or None,
+    }
+    max_images = options.pop("max_images", None)
+    tuning["max_images"] = int(max_images) if max_images is not None else None
+    tuning_device = options.get("device")
+    model = vision(options)
+    tuning["device"] = tuning_device
+    reject_unknown(options)
+    print(json.dumps(model.tune(**tuning).to_dict(), indent=2))
+
+
 def serve(options: Dict[str, str]) -> None:
     serving = {
         "host": options.pop("host", "127.0.0.1"),
@@ -192,6 +227,7 @@ HANDLERS = {
     "sft": train,
     "export": export,
     "benchmark": benchmark,
+    "tune": tune,
     "publish": publish,
     "serve": serve,
     "info": info,
