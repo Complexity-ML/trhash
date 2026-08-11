@@ -26,8 +26,7 @@ def export_onnx(
             self.detector = detector
 
         def forward(self, pixel_values):
-            one_to_many, one_to_one = self.detector.forward_predictions(pixel_values)
-            return one_to_one if one_to_one is not None else one_to_many
+            return self.detector.forward_predictions(pixel_values)
 
     output_path = Path(output).expanduser().resolve()
     output_path.mkdir(parents=True, exist_ok=True)

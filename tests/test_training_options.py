@@ -14,7 +14,6 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
         vision_top_k=2,
         vision_expert_width=48,
         assignment_top_k=5,
-        one_to_one_loss_weight=1.0,
         box_loss_weight=5.0,
         objectness_loss_weight=1.0,
         class_loss_weight=1.0,
@@ -30,7 +29,6 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
         dynamic_assignment=True,
         stal_enabled=True,
         progressive_loss_enabled=True,
-        end_to_end=True,
     )
 
     arguments = architecture_arguments(config)
@@ -38,4 +36,3 @@ def test_checkpoint_architecture_is_forwarded_to_sft():
     assert arguments[arguments.index("--image-size") + 1] == "224"
     assert arguments[arguments.index("--vision-num-experts") + 1] == "4"
     assert "--p2-head" in arguments
-    assert "--no-end-to-end" not in arguments

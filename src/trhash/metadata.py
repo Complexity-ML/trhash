@@ -57,6 +57,6 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         class_names=tuple(backend.names),
         grid_sizes=tuple(config.grid_sizes),
         center_offset_mode=config.center_offset_mode,
-        end_to_end=config.end_to_end,
+        end_to_end=False,
         recommended_confidence=float(backend.validation.get("best_confidence", 0.25)),
     )

@@ -23,8 +23,6 @@ def architecture_arguments(config) -> list[str]:
         str(config.vision_expert_width),
         "--assignment-top-k",
         str(config.assignment_top_k),
-        "--one-to-one-loss-weight",
-        str(config.one_to_one_loss_weight),
         "--box-loss-weight",
         str(config.box_loss_weight),
         "--objectness-loss-weight",
@@ -52,7 +50,6 @@ def architecture_arguments(config) -> list[str]:
         (not config.dynamic_assignment, "--static-assignment"),
         (not config.stal_enabled, "--no-stal"),
         (not config.progressive_loss_enabled, "--no-progressive-loss"),
-        (not config.end_to_end, "--no-end-to-end"),
     )
     arguments.extend(flag for enabled, flag in flags if enabled)
     return arguments
