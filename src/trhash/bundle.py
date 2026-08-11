@@ -27,13 +27,19 @@ def resolve_bundle(
                 repo_id=str(model),
                 revision=revision,
                 token=token,
-                allow_patterns=("trhash.json", "*.onnx", "*.torchscript"),
+                allow_patterns=(
+                    "trhash.json",
+                    "*.onnx",
+                    "*.torchscript",
+                    "*.engine",
+                    "*.mlpackage/**",
+                ),
             )
         )
     if not (bundle / "trhash.json").is_file():
         raise FileNotFoundError(f"portable model bundle is missing trhash.json: {bundle}")
     metadata = ModelMetadata.load(bundle)
-    if not (bundle / metadata.model_file).is_file():
+    if not (bundle / metadata.model_file).exists():
         raise FileNotFoundError(
             f"portable model bundle is missing {metadata.model_file}: {bundle}"
         )

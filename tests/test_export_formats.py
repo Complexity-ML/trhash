@@ -79,6 +79,36 @@ def test_onnx_export_parity_and_auto_runtime(tmp_path: Path):
     assert result.labels == [0]
 
 
+def test_coreml_export_parity_and_auto_runtime(tmp_path: Path):
+    pytest.importorskip("coremltools")
+    bundle = export_model(
+        _backend(),
+        format="coreml",
+        output=tmp_path / "coreml",
+        precision="fp32",
+    )
+
+    model = Vision(bundle, device="cpu")
+    results = model.predict(
+        [Image.new("RGB", (16, 16), "white"), Image.new("RGB", (16, 16), "black")],
+        batch=2,
+    )
+
+    assert type(model.backend).__name__ == "CoreMLBackend"
+    assert len(results) == 2
+    assert all(result.labels == [0] for result in results)
+
+
+def test_tensorrt_export_requires_nvidia_runtime(tmp_path: Path):
+    try:
+        import tensorrt  # noqa: F401
+    except ImportError:
+        with pytest.raises(RuntimeError, match=r"trhash\[tensorrt\]"):
+            export_model(_backend(), format="tensorrt", output=tmp_path / "tensorrt")
+    else:
+        pytest.skip("TensorRT runtime is installed; CUDA integration test owns this path")
+
+
 def test_runtime_rejects_format_mismatch(tmp_path: Path):
     bundle = export_model(_backend(), format="torchscript", output=tmp_path / "torchscript")
 

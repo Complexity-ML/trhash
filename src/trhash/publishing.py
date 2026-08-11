@@ -21,7 +21,7 @@ def publish_bundle(
         raise RuntimeError("publishing requires huggingface_hub") from error
     bundle_path = Path(bundle).expanduser().resolve()
     metadata = ModelMetadata.load(bundle_path)
-    if not (bundle_path / metadata.model_file).is_file():
+    if not (bundle_path / metadata.model_file).exists():
         raise FileNotFoundError(bundle_path / metadata.model_file)
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, repo_type="model", private=private, exist_ok=True)
@@ -29,6 +29,6 @@ def publish_bundle(
         repo_id=repo_id,
         repo_type="model",
         folder_path=str(bundle_path),
-        commit_message="Publish portable TR-Hash ONNX bundle",
+        commit_message="Publish portable TR-Hash model bundle",
     )
     return result.oid

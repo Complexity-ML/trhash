@@ -87,8 +87,14 @@ def load_portable_backend(
     bundle = resolve_bundle(model, revision=revision, token=token)
     metadata = ModelMetadata.load(bundle)
     extension = Path(metadata.model_file).suffix.casefold()
-    detected_runtime = "onnx" if extension == ".onnx" else "torchscript"
-    if extension not in {".onnx", ".torchscript"}:
+    runtime_by_extension = {
+        ".onnx": "onnx",
+        ".torchscript": "torchscript",
+        ".mlpackage": "coreml",
+        ".engine": "tensorrt",
+    }
+    detected_runtime = runtime_by_extension.get(extension)
+    if detected_runtime is None:
         raise ValueError(f"unsupported portable model file: {metadata.model_file}")
     if runtime != "auto" and runtime != detected_runtime:
         raise ValueError(
@@ -98,6 +104,14 @@ def load_portable_backend(
         from .onnx import OnnxBackend
 
         return OnnxBackend(bundle, device=device)
+    if detected_runtime == "coreml":
+        from .coreml import CoreMLBackend
+
+        return CoreMLBackend(bundle, device=device)
+    if detected_runtime == "tensorrt":
+        from .tensorrt import TensorRTBackend
+
+        return TensorRTBackend(bundle, device=device)
     from .torchscript import TorchScriptBackend
 
     return TorchScriptBackend(bundle, device=device)

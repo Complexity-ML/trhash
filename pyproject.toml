@@ -29,6 +29,13 @@ export = [
     "onnxruntime>=1.20",
 ]
 torchscript = ["torch>=2.2", "huggingface-hub>=0.27"]
+coreml = ["coremltools>=9.0,<10", "huggingface-hub>=0.27"]
+tensorrt = [
+    "torch>=2.2",
+    "tensorrt>=10.0; platform_system == 'Linux'",
+    "nvidia-modelopt[onnx]>=0.45; platform_system == 'Linux'",
+    "huggingface-hub>=0.27",
+]
 runtime = [
     "numpy>=1.24",
     "onnxruntime>=1.20",

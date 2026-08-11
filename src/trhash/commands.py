@@ -110,12 +110,18 @@ def train(options: Dict[str, str]) -> None:
 
 
 def export(options: Dict[str, str]) -> None:
+    export_format = options.pop("format", "onnx")
     exporting = {
         "output": options.pop("output", "runs/export"),
-        "format": options.pop("format", "onnx"),
+        "format": export_format,
         "opset": int(options.pop("opset", "18")),
         "verify": optional_bool(options, "verify", True),
     }
+    if export_format in {"coreml", "tensorrt"}:
+        exporting["precision"] = options.pop("precision", "fp16")
+    if export_format == "tensorrt":
+        exporting["max_batch"] = int(options.pop("max_batch", "32"))
+        exporting["workspace_gb"] = float(options.pop("workspace_gb", "1"))
     model = vision(options)
     reject_unknown(options)
     print(json.dumps({"bundle": str(model.export(**exporting))}, indent=2))

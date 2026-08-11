@@ -31,7 +31,7 @@ class Vision:
             self.backend = RemoteBackend(str(model), endpoint, api_key=api_key)
         else:
             path = Path(model).expanduser()
-            use_portable = runtime in {"onnx", "torchscript"} or (
+            use_portable = runtime in {"onnx", "torchscript", "coreml", "tensorrt"} or (
                 runtime == "auto" and (not path.is_dir() or (path / "trhash.json").exists())
             )
             if use_portable:
@@ -49,7 +49,9 @@ class Vision:
 
                 self.backend = LocalBackend(model, device=device, revision=revision, token=token)
             else:
-                raise ValueError("runtime must be auto, onnx, torchscript, or torch")
+                raise ValueError(
+                    "runtime must be auto, onnx, torchscript, coreml, tensorrt, or torch"
+                )
 
     def predict(
         self,

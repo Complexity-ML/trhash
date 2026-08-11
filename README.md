@@ -119,6 +119,16 @@ trhash export \
   format=torchscript \
   output=artifacts/trhash-torchscript
 
+trhash export \
+  model=artifacts/detector/best runtime=torch \
+  format=coreml precision=fp16 output=artifacts/trhash-coreml
+
+# Run on the target NVIDIA machine: TensorRT engines are hardware/runtime specific.
+trhash export \
+  model=artifacts/detector/best runtime=torch device=cuda \
+  format=tensorrt precision=fp16 max_batch=32 workspace_gb=2 \
+  output=artifacts/trhash-tensorrt
+
 trhash benchmark \
   model=artifacts/detector/best runtime=torch source=image.jpg \
   formats=onnx,torchscript runs=50 batch=8 output=runs/benchmark
@@ -130,11 +140,10 @@ trhash serve \
   port=8000
 ```
 
-Both exports run raw-output parity checks against the PyTorch checkpoint before
+Every export runs raw-output parity checks against the PyTorch checkpoint before
 the bundle is accepted. The portable bundle contains:
 
-- `model.onnx` or `model.torchscript`: fixed-resolution inference graph with
-  dynamic batching;
+- `model.onnx`, `model.torchscript`, `model.mlpackage`, or `model.engine`;
 - `trhash.json`: classes, feature-grid geometry, DFL bins, score encoding,
   preprocessing, calibrated confidence, and NMS metadata.
 
@@ -179,6 +188,11 @@ continue to use the same `Vision(endpoint=...)` API.
 - `trhash[runtime]`: local ONNX inference on CPU, CUDA, or CoreML;
 - `trhash[torchscript]`: autonomous TorchScript inference with PyTorch but no
   research framework;
+- `trhash[coreml]`: native Apple ML Program inference; requests are split to
+  batch 1 for predictable mobile execution;
+- `trhash[tensorrt]`: native NVIDIA engine building/inference with dynamic
+  batching. Engines must be built on the target GPU/TensorRT stack and treated
+  as trusted executable artifacts;
 - `trhash[serve]`: standalone FastAPI backend and Docker image;
 - `trhash[local,export]`: optional adapter used only for training checkpoints
   and producing portable bundles;
