@@ -17,7 +17,8 @@ from trhash import (  # noqa: E402
     Vision,
 )
 from trhash.exporter import export_model  # noqa: E402
-from trhash.metadata import ModelMetadata  # noqa: E402
+from trhash.exporting.common import ExportVisionModel  # noqa: E402
+from trhash.metadata import ModelMetadata, metadata_from_checkpoint  # noqa: E402
 
 
 class TinyDetector(torch.nn.Module):
@@ -32,6 +33,7 @@ class TinyDetector(torch.nn.Module):
             num_classes=2,
             grid_sizes=(1,),
             reg_max=0,
+            end_to_end=False,
         )
 
     def forward_predictions(self, pixel_values):
@@ -45,6 +47,39 @@ def _backend():
         names=("cat", "dog"),
         validation={"best_confidence": 0.25},
     )
+
+
+class TinyNMSFreeDetector(TinyDetector):
+    def __init__(self):
+        super().__init__()
+        self.config.end_to_end = True
+
+    def forward_branches(self, pixel_values):
+        one_to_many = self.forward_predictions(pixel_values)
+        one_to_one = one_to_many.clone()
+        one_to_one[..., -2:] = torch.tensor([[-4.0, 4.0]])
+        return one_to_many, one_to_one
+
+
+def _nms_free_backend():
+    return SimpleNamespace(
+        model=TinyNMSFreeDetector(),
+        names=("cat", "dog"),
+        validation={"best_confidence": 0.2},
+    )
+
+
+def test_detection_export_defaults_to_one_to_one_nms_free_output():
+    backend = _nms_free_backend()
+    wrapper = ExportVisionModel(backend.model, "detection")
+    pixels = torch.zeros(1, 3, 16, 16)
+
+    output = wrapper(pixels)
+    _, expected = backend.model.forward_branches(pixels)
+    metadata = metadata_from_checkpoint(backend)
+
+    torch.testing.assert_close(output, expected)
+    assert metadata.task_options == {"postprocess": "nms_free"}
 
 
 class TinyClassifier(torch.nn.Module):

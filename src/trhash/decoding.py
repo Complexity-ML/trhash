@@ -71,7 +71,10 @@ def decode(
     scores = class_scores[np.arange(len(labels)), labels]
     selected = np.flatnonzero(scores >= confidence)
     boxes, scores, labels = boxes[selected], scores[selected], labels[selected]
-    keep = class_aware_nms(boxes, scores, labels, iou, max_detections)
+    if metadata.task_options.get("postprocess") == "nms_free":
+        keep = np.argsort(-scores, kind="stable")[:max_detections]
+    else:
+        keep = class_aware_nms(boxes, scores, labels, iou, max_detections)
     result = boxes[keep], scores[keep], labels[keep]
     if return_indices:
         return (*result, selected[keep])

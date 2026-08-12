@@ -84,6 +84,11 @@ class ModelMetadata:
                 "predictions",
             ):
                 raise ValueError("detection bundles require a predictions output")
+            if metadata.task == "detection" and metadata.task_options.get(
+                "postprocess",
+                "class_aware_nms",
+            ) not in {"class_aware_nms", "nms_free"}:
+                raise ValueError("unsupported detection postprocess mode")
             if metadata.task == "instance_segmentation":
                 expected_outputs = (
                     "predictions",
@@ -265,5 +270,11 @@ def metadata_from_checkpoint(backend, model_file: str = "model.onnx") -> ModelMe
         score_encoding="quality_class_sigmoid",
         recommended_confidence=float(backend.validation.get("best_confidence", 0.25)),
         output_names=("predictions",),
-        task_options={},
+        task_options={
+            "postprocess": (
+                "nms_free"
+                if bool(getattr(config, "end_to_end", False))
+                else "class_aware_nms"
+            )
+        },
     )

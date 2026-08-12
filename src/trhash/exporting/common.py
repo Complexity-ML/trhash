@@ -52,6 +52,13 @@ class ExportVisionModel(torch.nn.Module):
             outputs = self.model.forward_obb(pixel_values)
             return outputs["raw"], outputs["angles"]
         if self.task == "detection":
+            if bool(getattr(self.model.config, "end_to_end", False)):
+                _, one_to_one = self.model.forward_branches(pixel_values)
+                if one_to_one is None:
+                    raise RuntimeError(
+                        "NMS-free detector did not return its one-to-one branch"
+                    )
+                return one_to_one
             return self.model.forward_predictions(pixel_values)
         raise NotImplementedError(f"portable export is not implemented for task={self.task}")
 

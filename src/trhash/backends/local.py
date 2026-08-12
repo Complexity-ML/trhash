@@ -90,6 +90,11 @@ class LocalBackend(PortableDetectionBackend):
             if self.task == "obb":
                 outputs = self.model.forward_obb(values)
                 return outputs["raw"].cpu().numpy(), outputs["angles"].cpu().numpy()
+            if bool(getattr(self.model.config, "end_to_end", False)):
+                _, one_to_one = self.model.forward_branches(values)
+                if one_to_one is None:
+                    raise RuntimeError("NMS-free detector did not return its one-to-one branch")
+                return one_to_one.cpu().numpy()
             return self.model.forward_predictions(values).cpu().numpy()
 
     def train(self, **options) -> Path:

@@ -67,6 +67,37 @@ def test_numpy_decode_dfl_prediction():
     assert labels.tolist() == [1]
 
 
+def test_numpy_decode_nms_free_keeps_top_scored_cells_without_nms(monkeypatch):
+    distance = np.log(np.expm1(0.25))
+    raw = np.array(
+        [
+            [distance, distance, distance, distance, 4.0, -4.0],
+            [distance, distance, distance, distance, 3.0, -4.0],
+        ],
+        dtype=np.float32,
+    )
+    metadata = _metadata(
+        grid_sizes=(1, 1),
+        task_options={"postprocess": "nms_free"},
+    )
+
+    def fail_nms(*_args, **_kwargs):
+        raise AssertionError("NMS must not run for an NMS-free bundle")
+
+    monkeypatch.setattr("trhash.decoding.class_aware_nms", fail_nms)
+    boxes, scores, labels = decode(
+        raw,
+        metadata,
+        confidence=0.2,
+        iou=0.0,
+        max_detections=2,
+    )
+
+    assert boxes.shape == (2, 4)
+    assert scores[0] > scores[1]
+    assert labels.tolist() == [0, 0]
+
+
 def test_numpy_decode_returns_typed_empty_detections():
     raw = np.full((1, 6), -8.0, dtype=np.float32)
 
