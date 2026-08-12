@@ -28,7 +28,8 @@ def _config() -> TRHashDetectorConfig:
         image_size=32,
         patch_size=8,
         vision_hidden_size=32,
-        vision_layers=1,
+        vision_layers=3,
+        vision_stage_depths=(1, 1, 1),
         vision_heads=4,
         vision_num_experts=4,
         vision_top_k=2,
@@ -56,9 +57,7 @@ def test_framework_classification_checkpoint_to_portable_bundle(tmp_path: Path):
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "bundle")
     _assert_v5_bundle(bundle)
-    portable_result = Vision(bundle, device="cpu").predict(
-        Image.new("RGB", (40, 20), "white")
-    )
+    portable_result = Vision(bundle, device="cpu").predict(Image.new("RGB", (40, 20), "white"))
 
     assert isinstance(local_result, ClassificationResult)
     assert isinstance(portable_result, ClassificationResult)
@@ -80,9 +79,7 @@ def test_framework_semantic_checkpoint_to_portable_bundle(tmp_path: Path):
         output=tmp_path / "semantic-bundle",
     )
     _assert_v5_bundle(bundle)
-    portable_result = Vision(bundle, device="cpu").predict(
-        Image.new("RGB", (40, 20), "white")
-    )
+    portable_result = Vision(bundle, device="cpu").predict(Image.new("RGB", (40, 20), "white"))
 
     assert isinstance(local_result, SemanticSegmentationResult)
     assert isinstance(portable_result, SemanticSegmentationResult)
@@ -103,9 +100,7 @@ def test_framework_depth_checkpoint_to_portable_bundle(tmp_path: Path):
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "depth-bundle")
     _assert_v5_bundle(bundle)
-    portable_result = Vision(bundle, device="cpu").predict(
-        Image.new("RGB", (40, 20), "white")
-    )
+    portable_result = Vision(bundle, device="cpu").predict(Image.new("RGB", (40, 20), "white"))
 
     assert isinstance(local_result, DepthResult)
     assert isinstance(portable_result, DepthResult)
@@ -128,9 +123,7 @@ def test_framework_pose_checkpoint_to_portable_bundle(tmp_path: Path):
     local_result = local.predict(Image.new("RGB", (40, 20), "white"))
     bundle = local.export(format="torchscript", output=tmp_path / "pose-bundle")
     _assert_v5_bundle(bundle)
-    portable_result = Vision(bundle, device="cpu").predict(
-        Image.new("RGB", (40, 20), "white")
-    )
+    portable_result = Vision(bundle, device="cpu").predict(Image.new("RGB", (40, 20), "white"))
 
     assert isinstance(local_result, PoseResult)
     assert isinstance(portable_result, PoseResult)

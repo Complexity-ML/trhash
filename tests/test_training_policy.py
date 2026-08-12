@@ -21,10 +21,10 @@ def test_augmentation_is_explicit_finetuning_policy(monkeypatch, tmp_path: Path)
         checkpoint=tmp_path / "source",
         device="cpu",
         model=SimpleNamespace(
-                config=SimpleNamespace(
-                    architecture_version=5,
-                    neck_mode="pan",
-                    image_size=32,
+            config=SimpleNamespace(
+                architecture_version=5,
+                neck_mode="pan",
+                image_size=32,
                 patch_size=8,
                 vision_hidden_size=32,
                 vision_layers=1,
@@ -80,9 +80,7 @@ def test_unknown_augmentation_is_rejected(tmp_path: Path):
         )
 
 
-def test_multi_device_training_uses_torch_distributed_launcher(
-    monkeypatch, tmp_path: Path
-):
+def test_multi_device_training_uses_torch_distributed_launcher(monkeypatch, tmp_path: Path):
     backend = SimpleNamespace(
         names=("object",),
         checkpoint=tmp_path / "source",
@@ -133,9 +131,7 @@ def test_multi_device_training_uses_torch_distributed_launcher(
 
     assert "torch.distributed.run" in command
     assert command[command.index("--nproc-per-node") + 1] == "4"
-    assert command[command.index("--module") + 1] == (
-        "complexity.generative.detection.training"
-    )
+    assert command[command.index("--module") + 1] == ("trhash.training_entrypoint")
 
 
 def test_resume_uses_exact_checkpoint_without_transfer_mapping(monkeypatch, tmp_path: Path):
@@ -147,10 +143,10 @@ def test_resume_uses_exact_checkpoint_without_transfer_mapping(monkeypatch, tmp_
         checkpoint=checkpoint,
         device="cpu",
         model=SimpleNamespace(
-                config=SimpleNamespace(
-                    architecture_version=5,
-                    neck_mode="pan",
-                    image_size=32,
+            config=SimpleNamespace(
+                architecture_version=5,
+                neck_mode="pan",
+                image_size=32,
                 patch_size=8,
                 vision_hidden_size=32,
                 vision_layers=1,

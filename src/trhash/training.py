@@ -102,14 +102,14 @@ class FineTuner:
                 "--nproc-per-node",
                 str(devices),
                 "--module",
-                "complexity.generative.detection.training",
+                "trhash.training_entrypoint",
             ]
             if devices > 1
             else [
                 sys.executable,
                 "-u",
                 "-m",
-                "complexity.generative.detection.training",
+                "trhash.training_entrypoint",
             ]
         )
         command = [
