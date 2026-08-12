@@ -69,6 +69,7 @@ def test_augmentation_is_explicit_finetuning_policy(monkeypatch, tmp_path: Path)
     assert command[command.index("--eval-batch-size") + 1] == "0"
     assert command[command.index("--eval-every") + 1] == "5"
     assert command[command.index("--eval-max-detections") + 1] == "100"
+    assert command[command.index("--optimizer") + 1] == "musgd"
 
 
 def test_unknown_augmentation_is_rejected(tmp_path: Path):

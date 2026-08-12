@@ -133,6 +133,8 @@ class FineTuner:
             str(eval_max_detections),
             "--workers",
             str(workers),
+            "--optimizer",
+            "musgd",
             "--lr",
             str(lr),
             "--expert-lr-multiplier",
